@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter run:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(dart analyze:*)",
+      "Bash(cp \"/c/Users/ciladistri/Downloads/1777229042.png\" \"/c/Users/ciladistri/Downloads/koko_and_me/assets/images/vn_jungle_bg.png\")",
+      "Bash(cp \"/c/Users/ciladistri/Downloads/koko_final.png\" \"/c/Users/ciladistri/Downloads/koko_and_me/assets/images/koko_char.png\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(mv /tmp/vn_trimmed.dart \"/c/Users/ciladistri/Downloads/koko_and_me/lib/screens/visual_novel_screen.dart\")",
+      "Bash(python3 -c ':*)",
+      "Bash(python3)",
+      "Bash(python3 -c ' *)",
+      "Bash(flutter test *)",
+      "Bash(flutter pub *)",
+      "Bash(ls \"/c/Users/ciladistri/AppData/Local/Android/Sdk/cmdline-tools/\" 2>/dev/null || echo \"cmdline-tools absent\")",
+      "Bash(stat -c%s \"/c/Users/ciladistri/AppData/Local/Temp/cmdline-tools.zip\" 2>/dev/null)",
+      "Bash(mkdir -p /c/Users/ciladistri/AppData/Local/Android/Sdk/cmdline-tools/latest)",
+      "Bash(unzip -o \"/c/Users/ciladistri/AppData/Local/Temp/cmdline-tools.zip\" -d \"/c/Users/ciladistri/AppData/Local/Temp/cmdline-extract\")",
+      "Bash(flutter doctor *)",
+      "PowerShell(flutter doctor 2>&1 | Select-String \"Android|license|Chrome|device\" | ForEach-Object { $_.Line })",
+      "Bash(\"/c/Users/ciladistri/AppData/Local/Android/Sdk/cmdline-tools/latest/bin/sdkmanager\" --licenses --sdk_root=\"/c/Users/ciladistri/AppData/Local/Android/Sdk\")",
+      "Bash(yes)",
+      "Bash(cmd.exe /c '\"C:\\\\Users\\\\ciladistri\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\cmdline-tools\\\\latest\\\\bin\\\\sdkmanager.bat\" --licenses')",
+      "PowerShell(flutter doctor 2>&1)",
+      "Bash(./gradlew signingReport)",
+      "Bash(find /c/Users/ciladistri -name \"keytool.exe\" 2>/dev/null | head -3)",
+      "Bash(\"/c/Users/ciladistri/AppData/Local/Ankama/Wakfu/jre/bin/keytool.exe\" -list -v -alias androiddebugkey -keystore \"/c/Users/ciladistri/.android/debug.keystore\" -storepass android -keypass android)",
+      "Bash(flutter build *)",
+      "PowerShell($tcp = New-Object System.Net.Sockets.TcpListener\\([System.Net.IPAddress]::Loopback, 0\\); $tcp.Start\\(\\); $port = $tcp.LocalEndpoint.Port; $client = New-Object System.Net.Sockets.TcpClient; $client.Connect\\(\"127.0.0.1\", $port\\); \"TCP loopback OK on port $port\"; $client.Close\\(\\); $tcp.Stop\\(\\))",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-17.0.19.10-hotspot\"; $env:PATH = \"$env:JAVA_HOME\\\\bin;$env:PATH\"; Set-Location \"C:\\\\Users\\\\ciladistri\\\\Downloads\\\\koko_and_me\"; flutter build apk --release 2>&1 | Select-Object -Last 10)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Program Files\\\\Eclipse Adoptium\\\\jdk-17.0.19.10-hotspot\"; & \"$env:JAVA_HOME\\\\bin\\\\java.exe\" -XshowSettings:property -version 2>&1 | Select-String \"java.version|selector\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

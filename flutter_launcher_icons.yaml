@@ -1,0 +1,36 @@
+# ─── APP ICON CONFIG ─────────────────────────────────────────────────────────
+# Pour générer les icônes : flutter pub run flutter_launcher_icons
+#
+# Prérequis : placer votre image source dans assets/images/app_icon.png
+#   • Format PNG, fond transparent recommandé
+#   • Taille minimale recommandée : 1024×1024 px
+#
+# L'icône adaptative Android utilise deux calques :
+#   • Fond    : assets/images/app_icon_bg.png  (couleur nuit de koko&me)
+#   • Premier : assets/images/app_icon_fg.png  (koko sur fond transparent)
+# ─────────────────────────────────────────────────────────────────────────────
+
+flutter_launcher_icons:
+  # ── Android ────────────────────────────────────────────────────────────────
+  android: true
+  min_sdk_android: 21
+
+  # Icône classique (API < 26)
+  image_path_android: "assets/images/app_icon.png"
+
+  # Icône adaptative (API ≥ 26) — calque fond + calque premier plan
+  adaptive_icon_background: "#0E0920"          # KokoColors.night
+  adaptive_icon_foreground: "assets/images/app_icon_fg.png"
+
+  # ── iOS ────────────────────────────────────────────────────────────────────
+  ios: true
+  image_path_ios: "assets/images/app_icon.png"
+  remove_alpha_ios: true   # App Store interdit le canal alpha sur l'icône iOS
+
+  # ── Autres plateformes (désactivées) ───────────────────────────────────────
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false

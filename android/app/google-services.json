@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "863105917746",
+    "project_id": "koko-and-me",
+    "storage_bucket": "koko-and-me.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:863105917746:android:ae6ee6b17cc8385ad9ad2b",
+        "android_client_info": {
+          "package_name": "com.kokome.koko_and_me"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "863105917746-bskiqfai6gt962nv40o2dhh7aqrc3bbu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kokome.koko_and_me",
+            "certificate_hash": "82447a000b244bca845ed01e740d2e94f18935d4"
+          }
+        },
+        {
+          "client_id": "863105917746-sb4bu33tfp971b9ch95613pi41gb83st.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcXVmq4xRRrgL0MAXAa64p82KrRtLu22Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "863105917746-sb4bu33tfp971b9ch95613pi41gb83st.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
