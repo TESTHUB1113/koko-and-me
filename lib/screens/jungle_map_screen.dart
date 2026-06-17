@@ -1,3 +1,4 @@
+import 'dart:io' as dart_io;
 import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/department.dart';
@@ -5,6 +6,7 @@ import '../widgets/dept_node_widget.dart';
 import '../widgets/jungle_path_painter.dart';
 import '../data/dept_progress.dart';
 import '../data/user_progress.dart';
+import '../data/user_profile.dart';
 import 'dept_entry_screen.dart';
 import 'intro_screen.dart';
 import 'profile_screen.dart';
@@ -304,10 +306,17 @@ class _TopBar extends StatelessWidget {
             child: CircleAvatar(
               radius: 16,
               backgroundColor: KokoColors.teal.withValues(alpha: 0.2),
-              child: Text(UserProfile.initial, style: const TextStyle(
-                fontFamily: 'Nunito', fontWeight: FontWeight.w900,
-                fontSize: 12, color: Colors.white,
-              )),
+              backgroundImage: UserProfile.avatarPath.isNotEmpty
+                  ? dart_io.File(UserProfile.avatarPath).existsSync()
+                      ? FileImage(dart_io.File(UserProfile.avatarPath))
+                      : null
+                  : null,
+              child: UserProfile.avatarPath.isEmpty
+                  ? Text(UserProfile.initial, style: const TextStyle(
+                      fontFamily: 'Nunito', fontWeight: FontWeight.w900,
+                      fontSize: 12, color: Colors.white,
+                    ))
+                  : null,
             ),
           ),
         ],
