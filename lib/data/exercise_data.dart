@@ -30,21 +30,21 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are sending a project update to your team.',
-      prompt: 'Please _____ me on that email — I need to stay in the loop.',
+      prompt: 'Please _____ me on that email. I need to stay in the loop.',
       options: ['CC', 'BCC', 'tag', 'forward'],
       correct: 0,
       tip: 'CC (Carbon Copy) sends a visible copy to another person so they stay informed.',
     ),
     Exo(
       type: ExType.dialogue,
-      scenario: 'Monday morning — weekly team check-in.',
+      scenario: 'Monday morning, weekly team check-in.',
       bubbles: [
         'Manager: "The board meeting is in 10 minutes. Only 4 out of 10 members are here."',
         'Chairperson: "Can we start the vote on the budget?"',
       ],
       prompt: 'You (Company Secretary) say:',
       options: [
-        'No — we need a quorum. We need at least 6 members to make the vote official.',
+        'No, we need a quorum. We need at least 6 members to make the vote official.',
         'Yes, 4 people is enough to start.',
         'Let\'s check the agenda first and decide later.',
         'We should move it to the AOB section.',
@@ -58,7 +58,7 @@ const Map<String, List<Exo>> deptExercises = {
       prompt: 'Neither side would move. After 4 hours of talks, we reached a _____.',
       options: ['deadlock', 'concession', 'win-win', 'leverage'],
       correct: 0,
-      tip: 'A deadlock means both sides are stuck — no progress, no agreement. Also called a stalemate.',
+      tip: 'A deadlock means both sides are stuck, no progress, no agreement. Also called a stalemate.',
     ),
     Exo(
       type: ExType.dialogue,
@@ -66,13 +66,13 @@ const Map<String, List<Exo>> deptExercises = {
       bubbles: ['Your manager: "How do you think Tom did in the meeting?"'],
       prompt: 'You respond:',
       options: [
-        'He gave constructive feedback — he flagged what could improve while staying professional.',
+        'He gave constructive feedback, he flagged what could improve while staying professional.',
         'He was very harsh. I think the client was uncomfortable.',
         'He stayed quiet and mostly listened.',
         'He went off topic and talked too much.',
       ],
       correct: 0,
-      tip: 'Constructive feedback is specific, helpful, and improvement-focused — not just criticism.',
+      tip: 'Constructive feedback is specific, helpful, and improvement-focused, not just criticism.',
     ),
     Exo(
       type: ExType.fillBlank,
@@ -92,7 +92,7 @@ const Map<String, List<Exo>> deptExercises = {
       prompt: 'Your first 3 months are a _____ period. After that, your role becomes permanent.',
       options: ['probation', 'induction', 'appraisal', 'benchmark'],
       correct: 0,
-      tip: 'Probation is a trial period at the start of employment — for both sides to assess the fit.',
+      tip: 'Probation is a trial period at the start of employment, for both sides to assess the fit.',
     ),
     Exo(
       type: ExType.dialogue,
@@ -106,7 +106,7 @@ const Map<String, List<Exo>> deptExercises = {
         'We cancelled the role due to budget constraints.',
       ],
       correct: 0,
-      tip: 'Shortlisted = selected as top candidates from a larger pool — the ones who will be interviewed.',
+      tip: 'Shortlisted = selected as top candidates from a larger pool, the ones who will be interviewed.',
     ),
     Exo(
       type: ExType.fillBlank,
@@ -126,7 +126,7 @@ const Map<String, List<Exo>> deptExercises = {
       prompt: 'You (HR) step in and say:',
       options: [
         'I\'m going to step in here and try to de-escalate this before it becomes a formal complaint.',
-        'This is none of my business — I\'ll leave them to sort it out.',
+        'This is none of my business. I\'ll leave them to sort it out.',
         'If you continue, you\'ll both be dismissed.',
         'Let\'s schedule a mediation session for next month.',
       ],
@@ -165,7 +165,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are presenting the annual budget to the board.',
-      prompt: 'Buying new office servers is a _____ — it\'s a long-term asset that stays on our books.',
+      prompt: 'Buying new office servers is a _____, it\'s a long-term asset that stays on our books.',
       options: ['Capex', 'Opex', 'Variance', 'Equity'],
       correct: 0,
       tip: 'Capex (Capital Expenditure) = spending on long-term assets like equipment, buildings, or software.',
@@ -180,7 +180,7 @@ const Map<String, List<Exo>> deptExercises = {
       prompt: 'You report to the CFO:',
       options: [
         'The account is overdue by 15 days. I\'ll send a formal reminder today.',
-        'No worries — they will probably pay by end of month.',
+        'No worries, they will probably pay by end of month.',
         'Let\'s write it off as a loss for this quarter.',
         'We should wait until they contact us.',
       ],
@@ -190,7 +190,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'Quarterly financial review with the leadership team.',
-      prompt: 'The _____ shows revenue of €800K and total costs of €550K — profit of €250K this quarter.',
+      prompt: 'The _____ shows revenue of €800K and total costs of €550K, profit of €250K this quarter.',
       options: ['P&L', 'Balance Sheet', 'Cash Flow Statement', 'Audit Report'],
       correct: 0,
       tip: 'P&L (Profit and Loss statement) tracks income and expenses over a period. Revenue - Costs = Profit.',
@@ -213,7 +213,7 @@ const Map<String, List<Exo>> deptExercises = {
       prompt: 'You have 30 seconds. You deliver your _____ for koko&me.',
       options: ['elevator pitch', 'value prop', 'CTA', 'brand brief'],
       correct: 0,
-      tip: 'An elevator pitch is a short, compelling summary of your idea — short enough for a lift ride.',
+      tip: 'An elevator pitch is a short, compelling summary of your idea, short enough for a lift ride.',
     ),
     Exo(
       type: ExType.dialogue,
@@ -221,10 +221,10 @@ const Map<String, List<Exo>> deptExercises = {
       bubbles: ['"This looks interesting. But why would I choose you over the cheaper alternatives?"'],
       prompt: 'You respond:',
       options: [
-        'Our value prop is simple: we save HR teams 10 hours a week — no other tool does that.',
+        'Our value prop is simple: we save HR teams 10 hours a week, no other tool does that.',
         'We are actually cheaper than most tools on the market.',
         'We have a really nice design and friendly customer service.',
-        'Our elevator pitch already covers that — let me repeat it.',
+        'Our elevator pitch already covers that, let me repeat it.',
       ],
       correct: 0,
       tip: 'Value prop (value proposition) = the unique benefit you offer that makes customers choose you.',
@@ -240,7 +240,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are finalising a product launch presentation.',
-      prompt: 'End the last slide with a clear _____ — tell the audience exactly what to do next.',
+      prompt: 'End the last slide with a clear _____, tell the audience exactly what to do next.',
       options: ['CTA', 'value prop', 'brief', 'tagline'],
       correct: 0,
       tip: 'CTA (Call To Action) = a clear instruction for the audience: "Sign up free", "Book a call", etc.',
@@ -257,7 +257,7 @@ const Map<String, List<Exo>> deptExercises = {
         'We prefer to focus on growth before we start charging.',
       ],
       correct: 0,
-      tip: 'Traction = real evidence of market interest and growth — paying customers, signups, or revenue.',
+      tip: 'Traction = real evidence of market interest and growth, paying customers, signups, or revenue.',
     ),
   ],
 
@@ -266,7 +266,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are joining a new tech team and explaining their process.',
-      prompt: 'We work in 2-week _____ — plan, build, demo, and then repeat.',
+      prompt: 'We work in 2-week _____, plan, build, demo, and then repeat.',
       options: ['sprints', 'phases', 'iterations', 'milestones'],
       correct: 0,
       tip: 'A sprint is a short, fixed work cycle in Agile. The team commits to a set of tasks and ships at the end.',
@@ -277,7 +277,7 @@ const Map<String, List<Exo>> deptExercises = {
       bubbles: ['"What do I need to do every morning at 9am?"'],
       prompt: 'You (team lead) explain:',
       options: [
-        'Join the stand-up — 15 minutes max. What you did, what you\'re doing, and any blockers.',
+        'Join the stand-up , 15 minutes max. What you did, what you\'re doing, and any blockers.',
         'Start coding immediately. We don\'t have morning meetings.',
         'Read through the backlog and pick whatever looks interesting.',
         'Send a written status report to the project manager.',
@@ -288,7 +288,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are preparing for the quarterly planning session.',
-      prompt: 'There are 40 features waiting to be built. The _____ is huge — we need to prioritise.',
+      prompt: 'There are 40 features waiting to be built. The _____ is huge, we need to prioritise.',
       options: ['backlog', 'roadmap', 'sprint board', 'kanban'],
       correct: 0,
       tip: 'Backlog = the full list of features, bugs, and tasks not yet done. Prioritised before each sprint.',
@@ -296,7 +296,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are reviewing old code with a colleague.',
-      prompt: 'We are not changing what it does — just cleaning up the structure. That\'s a _____.',
+      prompt: 'We are not changing what it does, just cleaning up the structure. That\'s a _____.',
       options: ['refactor', 'rewrite', 'review', 'rebuild'],
       correct: 0,
       tip: 'Refactoring = improving code quality and structure without changing its external behaviour.',
@@ -304,7 +304,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are pitching the product strategy to the board.',
-      prompt: 'Before building all 20 features, we launch the _____ — just the core experience — and learn from users.',
+      prompt: 'Before building all 20 features, we launch the _____, just the core experience, and learn from users.',
       options: ['MVP', 'beta', 'prototype', 'roadmap'],
       correct: 0,
       tip: 'MVP (Minimum Viable Product) = the simplest working version you can ship to test real market demand.',
@@ -316,7 +316,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are reviewing a new supplier contract.',
-      prompt: 'Section 5 is the payment _____ — it states all invoices must be paid within 30 days.',
+      prompt: 'Section 5 is the payment _____, it states all invoices must be paid within 30 days.',
       options: ['clause', 'term', 'article', 'provision'],
       correct: 0,
       tip: 'A clause is a specific section within a contract that covers one particular obligation or topic.',
@@ -350,10 +350,10 @@ const Map<String, List<Exo>> deptExercises = {
       bubbles: ['"Your agency delivered 3 months late and the output did not meet the agreed specification."'],
       prompt: 'You respond to your legal team:',
       options: [
-        'That is a breach of contract on their side — they changed the scope 5 times. Get the lawyers ready.',
-        'They are right — let\'s settle and pay them compensation immediately.',
+        'That is a breach of contract on their side, they changed the scope 5 times. Get the lawyers ready.',
+        'They are right, let\'s settle and pay them compensation immediately.',
         'Ignore it. They are bluffing and will not take this further.',
-        'Forward it to finance — this looks like a billing dispute.',
+        'Forward it to finance, this looks like a billing dispute.',
       ],
       correct: 0,
       tip: 'Breach = failing to honour a contract term. Identifying who is in breach is critical in any dispute.',
@@ -361,7 +361,7 @@ const Map<String, List<Exo>> deptExercises = {
     Exo(
       type: ExType.fillBlank,
       scenario: 'You are in sensitive settlement negotiations.',
-      prompt: 'Mark this email "_____ " — any offer made here cannot be used as evidence in court.',
+      prompt: 'Mark this email "_____ ", any offer made here cannot be used as evidence in court.',
       options: ['Without Prejudice', 'Confidential', 'Private and Secure', 'Off the Record'],
       correct: 0,
       tip: '"Without Prejudice" legally protects settlement discussions from being used in court proceedings.',

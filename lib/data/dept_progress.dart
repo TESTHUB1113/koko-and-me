@@ -149,6 +149,32 @@ class DeptProgress {
         d.completedDialogues.values.any((s) => s.isNotEmpty);
   }
 
+  // ── Progression 0.0 → 1.0 pour l'anneau circulaire ──────────────────────
+  /// Leçons complétées = 80 % de l'anneau ; score au test = 20 % final.
+  static double getProgress(String deptId) {
+    final d = _get(deptId);
+    var done = 0;
+    for (final set in d.completedDialogues.values) {
+      done += set.length;
+    }
+    const totalLessons = 16; // 4 catégories × 4 leçons
+    final lessonFraction = (done / totalLessons).clamp(0.0, 1.0) * 0.8;
+    if (!d.testDone) return lessonFraction;
+    final max = d.testMaxScore > 0 ? d.testMaxScore : 1;
+    final testFraction = (d.testScore / max).clamp(0.0, 1.0) * 0.2;
+    return (lessonFraction + testFraction).clamp(0.0, 1.0);
+  }
+
+  // ── Effacement total (changement de compte) ──────────────────────────────
+  static Future<void> clearAllLocal() async {
+    _store.clear();
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys().where((k) => k.startsWith('dp_')).toList();
+    for (final key in keys) {
+      await prefs.remove(key);
+    }
+  }
+
   // ── Pour les tests unitaires ─────────────────────────────────────────────
   static void resetForTesting() => _store.clear();
 }

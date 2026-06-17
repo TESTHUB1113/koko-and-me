@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,35 +14,38 @@ import 'services/notification_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Catch all unhandled Flutter/Dart errors so the app doesn't crash
-  // (needed on Windows where Firebase auth fires callbacks off the main thread)
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     debugPrint('Caught platform error: $error');
-    return true; // handled — don't crash
+    return true;
   };
 
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  // Firebase graceful fallback si pas encore configuré (placeholder keys)
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (_) {
-    // Firebase non configuré l'app démarre en mode local uniquement.
-    // Exécuter `flutterfire configure` pour activer l'authentification.
+
+  // Firebase is not initialized on Windows: its native SDK fires auth-state
+  // callbacks on a C++ background thread, which crashes Flutter immediately.
+  // All Firebase calls are guarded with null-checks so the app runs locally.
+  final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  if (!isWindows) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (_) {}
   }
-  // Charger toutes les données persistées avant le démarrage de l'app
+  // Load all persisted data before the app starts.
+  // Notifications are Android/iOS only — skip on Windows (no Windows settings
+  // were provided to InitializationSettings so it would throw).
   await Future.wait([
     UserProgress.load(),
     DeptProgress.load(),
     UserProfile.load(),
-    NotificationService.init(),
+    if (!isWindows) NotificationService.init(),
   ]);
   runZonedGuarded(
     () => runApp(const KokoMeApp()),

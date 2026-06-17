@@ -92,6 +92,17 @@ class UserProgress {
   static String get xpLabel => '$xp XP';
   static String get streakLabel => '$streak';
 
+  // ── Effacement total (changement de compte) ──────────────────────────────
+  static Future<void> clearAllLocal() async {
+    xp = 0;
+    streak = 0;
+    _lastActivityDate = '';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('up_xp');
+    await prefs.remove('up_streak');
+    await prefs.remove('up_last_date');
+  }
+
   // ── Pour les tests unitaires ─────────────────────────────────────────────
   static void resetForTesting() {
     xp = 0;

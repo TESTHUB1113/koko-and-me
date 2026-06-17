@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../data/dept_progress.dart';
+import '../data/four_pics_data.dart';
 import '../data/user_progress.dart';
 import '../data/word_craft_data.dart';
 
@@ -42,16 +44,17 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
     _scores.addAll(DeptProgress.getGameBestScores(widget.deptId));
   }
 
-  static const int _maxScore = 505;
+  static const int _maxScore = 585;
 
   static const _modes = [
     (icon: '🧠', label: 'Quick Fire Quiz', desc: 'Answer 6 situational questions correctly.',      maxPts: 90),
-    (icon: '📝', label: 'Crossword',       desc: 'Fill the grid — every letter counts.',           maxPts: 75),
+    (icon: '📝', label: 'Crossword',       desc: 'Fill the grid, every letter counts.',           maxPts: 75),
     (icon: '🔗', label: 'Word Match',      desc: 'Connect each term to its exact meaning.',        maxPts: 90),
     (icon: '🔀', label: 'Word Order',      desc: 'Rearrange the words into the right sentence.',   maxPts: 60),
     (icon: '✏️', label: 'Fill the Gap',   desc: 'Pick the word that belongs in the blank.',       maxPts: 80),
     (icon: '⚗️', label: 'Word Craft',     desc: 'Combine concepts to discover real vocabulary.',  maxPts: 60),
     (icon: '🎭', label: 'Scenario',        desc: 'Navigate a real-world workplace situation.',     maxPts: 50),
+    (icon: '🖼️', label: '4 Pics 1 Word',  desc: 'Find the business word linking all 4 images.',  maxPts: 80),
   ];
 
   int get _totalScore => _scores.values.fold(0, (a, b) => a + b);
@@ -220,6 +223,54 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
   }
 
   Widget _buildModeCard(BuildContext context, int i) {
+    if (i == 7) {
+      final mode = _modes[i];
+      return Opacity(
+        opacity: 0.38,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: _kBg2,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF1E1B3A)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46, height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _kBg4,
+                  border: Border.all(color: _kBdr2),
+                ),
+                child: const Icon(Icons.lock_outline_rounded,
+                    size: 20, color: _kHint),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(mode.label,
+                        style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: _kText2)),
+                    const SizedBox(height: 2),
+                    const Text('Coming soon',
+                        style: TextStyle(
+                            fontSize: 11, color: _kHint)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final mode  = _modes[i];
     final level = _modeStatusLevel(i);
     final score = _scores[i];
@@ -344,7 +395,7 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
       sub = 'You walked in not knowing the language. You leave fluent. Koko would just nod.';
     } else if (total >= 160) {
       title = 'Floor cleared';
-      sub = 'The words are yours now. Use them in the room — that\'s when they become real.';
+      sub = 'The words are yours now. Use them in the room. That\'s when they become real.';
     } else {
       title = 'Good effort';
       sub = 'The vocabulary is yours. The instinct sharpens with time. Koko never rushes.';
@@ -455,7 +506,7 @@ class _QuizGameState extends State<_QuizGame> {
     (
       q: 'Your team\'s OKR attainment rate this quarter is 68%. Your manager\'s reaction should be:',
       bold: 'OKR attainment rate',
-      hint: 'OKRs are designed to be ambitious — hitting 100% every quarter means your goals were too easy.',
+      hint: 'OKRs are designed to be ambitious. Hitting 100% every quarter means your goals were too easy.',
       opts: [
         'Concerned targets should hit 100%',
         'Satisfied 70% is the healthy benchmark for ambitious goals',
@@ -693,8 +744,8 @@ class _CrosswordGameState extends State<_CrosswordGame> {
     (num: 1, across: true,  r: 0, c: 0, answer: 'MEMO', clue: 'A short written message sent internally'),
     (num: 2, across: false, r: 0, c: 3, answer: 'OKR',  clue: 'Objectives and Key ___ (abbr.)'),
     (num: 3, across: true,  r: 1, c: 3, answer: 'KPI',  clue: 'Key Performance ___ (abbr.)'),
-    (num: 4, across: false, r: 1, c: 4, answer: 'PLAN', clue: 'Strategic ___ — a roadmap of goals and actions'),
-    (num: 5, across: true,  r: 2, c: 0, answer: 'YEAR', clue: 'Fiscal ___ — the 12-month reporting period'),
+    (num: 4, across: false, r: 1, c: 4, answer: 'PLAN', clue: 'Strategic ___: a roadmap of goals and actions'),
+    (num: 5, across: true,  r: 2, c: 0, answer: 'YEAR', clue: 'Fiscal ___: the 12-month reporting period'),
   ];
 
   static const _cellSize = 40.0;
@@ -2243,7 +2294,7 @@ class _WordCraftGameState extends State<_WordCraftGame> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 5),
-            child: Text('ELEMENTS — tap to add to canvas',
+            child: Text('ELEMENTS, tap to add to canvas',
                 style: TextStyle(fontSize: 8, letterSpacing: 1.3, color: Colors.white.withValues(alpha: 0.28))),
           ),
           SizedBox(
@@ -2797,6 +2848,7 @@ class _GamePageState extends State<_GamePage> {
       4 => _FillBlankGame(key: key, onDone: _onDone, gameNum: 1, total: 1),
       5 => _WordCraftGame(key: key, onDone: _onDone, gameNum: 1, total: 1, deptId: widget.deptId),
       6 => _ScenarioGame(key: key, onDone: _onDone, gameNum: 1, total: 1),
+      7 => _FourPicsGame(key: key, onDone: _onDone, deptId: widget.deptId),
       _ => const SizedBox.shrink(),
     };
   }
@@ -2907,4 +2959,277 @@ class _GamePageState extends State<_GamePage> {
       ),
     );
   }
+}
+
+// ─── 4 PICS 1 WORD ────────────────────────────────────────────────────────────
+
+class _FourPicsGame extends StatefulWidget {
+  final void Function(int score) onDone;
+  final String deptId;
+  const _FourPicsGame({super.key, required this.onDone, required this.deptId});
+
+  @override
+  State<_FourPicsGame> createState() => _FourPicsGameState();
+}
+
+class _PoolTile {
+  final String letter;
+  bool used;
+  _PoolTile(this.letter) : used = false;
+}
+
+class _FourPicsGameState extends State<_FourPicsGame> {
+  static const int _ptsPerWord = 10;
+
+  final List<FourPicsWord> _words = fourPicsManagement;
+  int _wordIdx = 0;
+  int _score   = 0;
+  bool _justCorrect = false;
+  bool _wrong       = false;
+
+  late List<String?> _answer;
+  late List<int> _answerSource;
+  late List<_PoolTile> _pool;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWord();
+  }
+
+  void _loadWord() {
+    final word    = _words[_wordIdx].word;
+    _answer       = List.filled(word.length, null);
+    _answerSource = List.filled(word.length, -1);
+    _pool         = _buildPool(word);
+    _justCorrect  = false;
+    _wrong        = false;
+  }
+
+  List<_PoolTile> _buildPool(String word) {
+    final letters = word.split('').toList()..shuffle(math.Random());
+    const alphabet = 'BCDFGHJKLMNPQRSTVWXYZ';
+    final extras = <String>[];
+    for (final c in (alphabet.split('')..shuffle(math.Random()))) {
+      if (!word.contains(c) && extras.length < 4) extras.add(c);
+      if (extras.length == 4) break;
+    }
+    return ([...letters, ...extras]..shuffle(math.Random()))
+        .map((l) => _PoolTile(l))
+        .toList();
+  }
+
+  void _tapPool(int idx) {
+    if (_pool[idx].used || _justCorrect) return;
+    final slot = _answer.indexOf(null);
+    if (slot == -1) return;
+    setState(() {
+      _answer[slot]       = _pool[idx].letter;
+      _answerSource[slot] = idx;
+      _pool[idx].used     = true;
+      _wrong              = false;
+    });
+  }
+
+  void _tapSlot(int slot) {
+    if (_answer[slot] == null || _justCorrect) return;
+    setState(() {
+      _pool[_answerSource[slot]].used = false;
+      _answer[slot]                   = null;
+      _answerSource[slot]             = -1;
+      _wrong                          = false;
+    });
+  }
+
+  void _submit() {
+    if (_answer.any((l) => l == null) || _justCorrect) return;
+    if (_answer.join() == _words[_wordIdx].word) {
+      setState(() { _score += _ptsPerWord; _justCorrect = true; _wrong = false; });
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (!mounted) return;
+        if (_wordIdx < _words.length - 1) {
+          setState(() { _wordIdx++; _loadWord(); });
+        } else {
+          widget.onDone(_score);
+        }
+      });
+    } else {
+      setState(() => _wrong = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final word  = _words[_wordIdx];
+    final total = _words.length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${_wordIdx + 1} / $total',
+                  style: const TextStyle(fontSize: 12, color: _kText2)),
+              Text('$_score pts',
+                  style: const TextStyle(
+                      fontFamily: 'Nunito', fontWeight: FontWeight.w800,
+                      fontSize: 12, color: _kOk)),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 6,
+            mainAxisSpacing: 6,
+            children: word.images.map(_buildImage).toList(),
+          ),
+          const SizedBox(height: 20),
+
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 4,
+            children: List.generate(word.word.length, (i) {
+              final filled = _answer[i] != null;
+              return GestureDetector(
+                onTap: () => _tapSlot(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  width: 32,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: _justCorrect ? _kOkBg : _wrong && filled ? _kNoBg : filled ? _kBg4 : _kBg2,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                        color: _justCorrect ? _kOkBdr : _wrong && filled ? _kNoBdr : filled ? _kBdr3 : _kBdr2),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _answer[i] ?? '',
+                      style: TextStyle(
+                        fontFamily: 'Nunito', fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: _justCorrect ? _kOk : _wrong && filled ? _kNo : _kText2,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+
+          Text(word.hint,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withValues(alpha: 0.35))),
+          const SizedBox(height: 20),
+
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 6,
+            runSpacing: 6,
+            children: List.generate(_pool.length, (i) {
+              final tile = _pool[i];
+              return GestureDetector(
+                onTap: () => _tapPool(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 100),
+                  width: 38,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: tile.used ? _kBg2 : _kBg4,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: tile.used
+                            ? _kBdr2.withValues(alpha: 0.3)
+                            : _kBdr3),
+                  ),
+                  child: Center(
+                    child: Text(
+                      tile.used ? '' : tile.letter,
+                      style: TextStyle(
+                        fontFamily: 'Nunito', fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: tile.used ? Colors.transparent : _kText2,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 20),
+
+          GestureDetector(
+            onTap: _answer.any((l) => l == null) || _justCorrect ? null : _submit,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              decoration: BoxDecoration(
+                color: _justCorrect
+                    ? _kOkBg
+                    : _wrong
+                        ? _kNoBg
+                        : _answer.any((l) => l == null)
+                            ? _kBg2
+                            : _kBrand,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: _justCorrect
+                      ? _kOkBdr
+                      : _wrong
+                          ? _kNoBdr
+                          : _answer.any((l) => l == null)
+                              ? _kBdr2
+                              : _kBrand,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  _justCorrect ? '✓ Correct!' : _wrong ? '✗ Try again' : 'Submit',
+                  style: TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: _justCorrect
+                        ? _kOk
+                        : _wrong
+                            ? _kNo
+                            : _answer.any((l) => l == null)
+                                ? _kHint
+                                : _kText2,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImage(String path) => ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.asset(
+          path,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            decoration: BoxDecoration(
+              color: _kBg4,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: Icon(Icons.image_outlined, color: _kHint, size: 32),
+            ),
+          ),
+        ),
+      );
 }

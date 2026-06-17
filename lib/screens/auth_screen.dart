@@ -60,6 +60,9 @@ class _AuthScreenState extends State<AuthScreen> {
     required String email,
     required bool isNewUser,
   }) async {
+    // Sur Windows Firebase est bypassé : on détecte le changement de compte
+    // via l'email pour éviter que la data du précédent utilisateur ne fuite.
+    await SyncService.handleLocalAccountSwitch(email: email, isNewUser: isNewUser);
     await UserProfile.save(
       newName:  name.isNotEmpty  ? name  : null,
       newEmail: email.isNotEmpty ? email : null,

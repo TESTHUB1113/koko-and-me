@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/user_profile.dart';
 import '../data/user_progress.dart';
 import '../data/dept_progress.dart';
@@ -50,11 +51,28 @@ class SyncService {
   // ── Lecture cloud → local ─────────────────────────────────────────────────
   /// Appelé juste après la connexion.
   /// Si le document n'existe pas (nouveau compte), pousse les données locales.
+  static const _lastUidKey = 'last_signed_in_uid';
+
   static Future<void> pullFromCloud() async {
     final doc = _userDoc;
     if (doc == null) return;
 
     try {
+      // If the signed-in UID differs from the last stored UID, this is a
+      // different account on the same device. Wipe all local progress so the
+      // new user never sees the previous user's data.
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid != null) {
+        final prefs     = await SharedPreferences.getInstance();
+        final storedUid = prefs.getString(_lastUidKey);
+        if (storedUid != currentUid) {
+          await DeptProgress.clearAllLocal();
+          await UserProgress.clearAllLocal();
+          await UserProfile.clearAllLocal();
+          await prefs.setString(_lastUidKey, currentUid);
+        }
+      }
+
       final snap = await doc.get();
 
       if (!snap.exists || snap.data() == null) {
@@ -181,6 +199,28 @@ class SyncService {
       );
     } catch (_) {
       // silencieux
+    }
+  }
+
+  // ── Changement de compte local (Windows — pas de Firebase) ───────────────
+  // Sur Windows Firebase est bypassé, donc pullFromCloud n'est jamais appelé.
+  // On utilise l'email comme proxy d'identité pour détecter un changement de compte.
+  static const _lastLocalEmailKey = 'last_local_email';
+
+  static Future<void> handleLocalAccountSwitch({
+    required String email,
+    required bool isNewUser,
+  }) async {
+    final prefs       = await SharedPreferences.getInstance();
+    final storedEmail = prefs.getString(_lastLocalEmailKey);
+
+    if (isNewUser || storedEmail != email) {
+      await DeptProgress.clearAllLocal();
+      await UserProgress.clearAllLocal();
+      await UserProfile.clearAllLocal();
+    }
+    if (email.isNotEmpty) {
+      await prefs.setString(_lastLocalEmailKey, email);
     }
   }
 }
