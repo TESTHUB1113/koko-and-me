@@ -156,11 +156,9 @@ class _NodeBubble extends StatelessWidget {
     final isMine      = role == NodeRole.mine;
     final isSecondary = role == NodeRole.secondary;
     final isLocked    = role == NodeRole.locked;
-    final iconColor   = isLocked
-        ? Colors.white.withValues(alpha: 0.25)
-        : isMine
-            ? dept.color
-            : dept.color.withValues(alpha: 0.85);
+    final iconColor   = isMine
+        ? dept.color
+        : dept.color.withValues(alpha: 0.85);
 
     return Opacity(
       opacity: isSecondary ? 0.65 : 1.0,
@@ -170,13 +168,15 @@ class _NodeBubble extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: RadialGradient(
             center: const Alignment(-0.3, -0.3),
-            colors: [dept.colorDim, const Color(0xF00E0920)],
+            colors: isLocked
+                ? const [Color(0xFF1A1A35), Color(0xFF0E0920)]
+                : [dept.colorDim, const Color(0xF00E0920)],
           ),
           border: Border.all(
             color: isMine
                 ? dept.color
                 : isLocked
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? const Color(0xFF3A3A5A)
                     : dept.color.withValues(alpha: 0.55),
             width: isMine ? 3.5 : 2.5,
           ),
@@ -191,17 +191,14 @@ class _NodeBubble extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (dept.imagePath != null)
-              Opacity(
-                opacity: isLocked ? 0.35 : 1.0,
-                child: ClipOval(
-                  child: Image.asset(
-                    dept.imagePath!,
-                    width: isMine ? 62 : 50,
-                    height: isMine ? 62 : 50,
-                    fit: BoxFit.cover,
-                    errorBuilder: (ctx, e, child2) =>
-                        Icon(dept.icon, size: isMine ? 30 : 24, color: iconColor),
-                  ),
+              ClipOval(
+                child: Image.asset(
+                  dept.imagePath!,
+                  width: isMine ? 62 : 50,
+                  height: isMine ? 62 : 50,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, e, child2) =>
+                      Icon(dept.icon, size: isMine ? 30 : 24, color: iconColor),
                 ),
               )
             else
