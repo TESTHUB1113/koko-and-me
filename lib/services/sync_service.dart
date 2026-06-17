@@ -93,6 +93,15 @@ class SyncService {
             (d['testMaxScore'] as int?) ?? 1,
           );
         }
+        final gameBestScores =
+            d['gameBestScores'] as Map<String, dynamic>? ?? {};
+        for (final entry in gameBestScores.entries) {
+          final idx = int.tryParse(entry.key);
+          if (idx != null) {
+            await DeptProgress.setGameBestScoreFromCloud(
+                id, idx, (entry.value as int?) ?? 0);
+          }
+        }
       }
     } catch (_) {
       // Pas de réseau ou Firebase non configuré → on continue en local
@@ -110,11 +119,14 @@ class SyncService {
       final departments = <String, Map<String, dynamic>>{};
       for (final id in _deptIds) {
         if (!DeptProgress.hasStarted(id)) continue;
+        final gameBestScores = DeptProgress.getGameBestScores(id);
         departments[id] = {
-          'lessonDone':   DeptProgress.isLessonDone(id),
-          'testDone':     DeptProgress.isTestDone(id),
-          'testScore':    DeptProgress.getTestScore(id),
-          'testMaxScore': DeptProgress.getTestMaxScore(id),
+          'lessonDone':    DeptProgress.isLessonDone(id),
+          'testDone':      DeptProgress.isTestDone(id),
+          'testScore':     DeptProgress.getTestScore(id),
+          'testMaxScore':  DeptProgress.getTestMaxScore(id),
+          if (gameBestScores.isNotEmpty)
+            'gameBestScores': gameBestScores.map((k, v) => MapEntry('$k', v)),
         };
       }
 

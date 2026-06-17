@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/dept_progress.dart';
+import '../data/user_progress.dart';
 import '../data/word_craft_data.dart';
 
 // ─── PALETTE ──────────────────────────────────────────────────────────────────
@@ -34,11 +35,18 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
   final Map<int, int> _scores = {};
   bool _showFinalEnd = false;
 
-  static const int _maxScore = 535;
+  @override
+  void initState() {
+    super.initState();
+    // Load best scores from previous sessions
+    _scores.addAll(DeptProgress.getGameBestScores(widget.deptId));
+  }
+
+  static const int _maxScore = 505;
 
   static const _modes = [
     (icon: '🧠', label: 'Quick Fire Quiz', desc: 'Answer 6 situational questions correctly.',      maxPts: 90),
-    (icon: '📝', label: 'Crossword',       desc: 'Fill the grid — every letter counts.',           maxPts: 105),
+    (icon: '📝', label: 'Crossword',       desc: 'Fill the grid — every letter counts.',           maxPts: 75),
     (icon: '🔗', label: 'Word Match',      desc: 'Connect each term to its exact meaning.',        maxPts: 90),
     (icon: '🔀', label: 'Word Order',      desc: 'Rearrange the words into the right sentence.',   maxPts: 60),
     (icon: '✏️', label: 'Fill the Gap',   desc: 'Pick the word that belongs in the blank.',       maxPts: 80),
@@ -61,14 +69,21 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
         ),
       ),
     );
-    if (score != null && mounted) {
-      setState(() {
-        _scores[idx] = score;
-        if (_scores.length == 7) {
-          DeptProgress.setTestScore(widget.deptId, _totalScore, _maxScore);
-          _showFinalEnd = true;
-        }
-      });
+    if (score == null || !mounted) return;
+
+    final wasNew  = !_scores.containsKey(idx);
+    final oldBest = _scores[idx] ?? 0;
+
+    // Award XP only for improvement; save best score
+    final delta = await DeptProgress.recordGameScore(widget.deptId, idx, score);
+    if (delta > 0) await UserProgress.addXp(delta);
+
+    setState(() => _scores[idx] = score > oldBest ? score : oldBest);
+
+    // Mark dept fully done when all game slots are filled for the first time
+    if (wasNew && _scores.length == _modes.length && mounted) {
+      await DeptProgress.setTestScore(widget.deptId, _totalScore, _maxScore);
+      if (mounted) setState(() => _showFinalEnd = true);
     }
   }
 
@@ -440,6 +455,7 @@ class _QuizGameState extends State<_QuizGame> {
     (
       q: 'Your team\'s OKR attainment rate this quarter is 68%. Your manager\'s reaction should be:',
       bold: 'OKR attainment rate',
+      hint: 'OKRs are designed to be ambitious — hitting 100% every quarter means your goals were too easy.',
       opts: [
         'Concerned targets should hit 100%',
         'Satisfied 70% is the healthy benchmark for ambitious goals',
@@ -453,6 +469,7 @@ class _QuizGameState extends State<_QuizGame> {
     (
       q: 'A KPI is different from an OKR because:',
       bold: 'KPI',
+      hint: 'Think of one as a speedometer (always on), the other as a destination on a map (for a set period).',
       opts: [
         'KPIs are set yearly; OKRs are set daily',
         'KPIs track ongoing health; OKRs drive a specific direction for a period',
@@ -466,6 +483,7 @@ class _QuizGameState extends State<_QuizGame> {
     (
       q: 'The board deck goes out tomorrow. You discover the CFO hasn\'t been briefed. You:',
       bold: 'board deck',
+      hint: 'A surprised CFO in front of the board is the worst outcome. Five minutes of alignment now beats an hour of public escalation.',
       opts: [
         'Send it anyway the CFO will read it',
         'Delay the deck and brief the CFO now',
@@ -481,6 +499,16 @@ class _QuizGameState extends State<_QuizGame> {
   int _cur = 0;
   int _pts = 0;
   int? _picked;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
+
+  void _useHint() {
+    if (_picked != null) return;
+    setState(() {
+      _hintPenalty += 20;
+      _hintText = _qs[_cur].hint;
+    });
+  }
 
   void _pick(int i) {
     if (_picked != null) return;
@@ -493,11 +521,12 @@ class _QuizGameState extends State<_QuizGame> {
       if (!mounted) return;
       final next = _cur + 1;
       if (next >= _qs.length) {
-        widget.onDone(_pts);
+        widget.onDone((_pts - _hintPenalty).clamp(0, 999));
       } else {
         setState(() {
-          _cur = next;
+          _cur    = next;
           _picked = null;
+          _hintText = '';
         });
       }
     });
@@ -512,7 +541,12 @@ class _QuizGameState extends State<_QuizGame> {
         tag: 'Quiz',
         name: 'Quick fire',
         step: '${widget.gameNum}/${widget.total}',
+        onHint: _picked == null ? _useHint : null,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (_hintText.isNotEmpty) ...[
+            _HintBanner('${_hintText} (−20 pts)'),
+            const SizedBox(height: 10),
+          ],
           _CardQ(
               text: 'Q${_cur + 1}/${_qs.length}: ${q.q}',
               boldWord: q.bold),
@@ -608,7 +642,17 @@ class _QuizGameState extends State<_QuizGame> {
   }
 }
 
-// ─── GAME 2: CROSSWORD (sequential clues) ────────────────────────────────────
+// ─── GAME 2: CROSSWORD (interactive grid) ────────────────────────────────────
+
+typedef _CWWord = ({
+  int num,
+  bool across,
+  int r,
+  int c,
+  String answer,
+  String clue,
+});
+
 class _CrosswordGame extends StatefulWidget {
   final void Function(int) onDone;
   final int gameNum, total;
@@ -622,168 +666,553 @@ class _CrosswordGame extends StatefulWidget {
 }
 
 class _CrosswordGameState extends State<_CrosswordGame> {
-  static const _clues = [
-    ('1 Across', 'Objectives & Key _____ (abbr.)', 'OKR'),
-    ('2 Across', 'Performance indicator abbr.', 'KPI'),
-    ('3 Across', 'Board ___ slides sent to directors', 'DECK'),
-    ('4 Across', 'Stakeholders must _____ before the meeting', 'ALIGN'),
-    ('6 Across', 'Number of employees; "___ plan"', 'HEADCOUNT'),
-    ('1 Down', 'Goal framework plural (abbr.)', 'OKRS'),
-    ('5 Down', 'Metric tracking ongoing performance', 'KPI'),
+  // 5 rows × 6 cols; '.' = black cell
+  // Verified intersections:
+  //   MEMO(0,0–3) × OKR-down(col3): O at (0,3)
+  //   OKR-down(col3) × KPI(1,3–5):  K at (1,3)
+  //   KPI(1,3–5)   × PLAN-down(col4): P at (1,4)
+  //   OKR-down(col3) × YEAR(2,0–3):  R at (2,3)
+  //   PLAN-down(col4) × YEAR(2,0–3)? — no overlap (YEAR ends at col3, PLAN at col4) ✓
+  static const _gridAnswer = [
+    ['M', 'E', 'M', 'O', '.', '.'],
+    ['.', '.', '.', 'K', 'P', 'I'],
+    ['Y', 'E', 'A', 'R', 'L', '.'],
+    ['.', '.', '.', '.', 'A', '.'],
+    ['.', '.', '.', '.', 'N', '.'],
   ];
 
-  int _cur = 0;
-  int _pts = 0;
-  bool _submitted = false;
-  bool _correct = false;
-  final _ctrl = TextEditingController();
+  static const _cellNums = [
+    [1, 0, 0, 2, 0, 0],
+    [0, 0, 0, 3, 4, 0],
+    [5, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0],
+  ];
+
+  static const List<_CWWord> _words = [
+    (num: 1, across: true,  r: 0, c: 0, answer: 'MEMO', clue: 'A short written message sent internally'),
+    (num: 2, across: false, r: 0, c: 3, answer: 'OKR',  clue: 'Objectives and Key ___ (abbr.)'),
+    (num: 3, across: true,  r: 1, c: 3, answer: 'KPI',  clue: 'Key Performance ___ (abbr.)'),
+    (num: 4, across: false, r: 1, c: 4, answer: 'PLAN', clue: 'Strategic ___ — a roadmap of goals and actions'),
+    (num: 5, across: true,  r: 2, c: 0, answer: 'YEAR', clue: 'Fiscal ___ — the 12-month reporting period'),
+  ];
+
+  static const _cellSize = 40.0;
+  static const _gap      = 3.0;
+
+  // Per-word typed input and done state
+  final List<String> _inputs = List.filled(5, '');
+  final List<bool?>  _done   = List.filled(5, null); // null=untouched, true=✓, false=✗
+  int    _curWord     = 0;
+  int    _pts         = 0;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
+  final _ctrl  = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+  }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
-  void _submit() {
-    if (_submitted) return;
-    final val = _ctrl.text.trim().toUpperCase();
-    final ok = val == _clues[_cur].$3;
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  List<(int, int)> _cells(int wi) {
+    final w = _words[wi];
+    return List.generate(
+      w.answer.length,
+      (i) => w.across ? (w.r, w.c + i) : (w.r + i, w.c),
+    );
+  }
+
+  bool _inWord(int wi, int r, int c) =>
+      _cells(wi).any((cell) => cell.$1 == r && cell.$2 == c);
+
+  String _displayLetter(int r, int c) {
+    // Confirmed words take priority
+    for (int wi = 0; wi < _words.length; wi++) {
+      if (_done[wi] != true) continue;
+      final cells = _cells(wi);
+      for (int ci = 0; ci < cells.length; ci++) {
+        if (cells[ci].$1 == r && cells[ci].$2 == c) return _words[wi].answer[ci];
+      }
+    }
+    // Current word's input
+    final cur = _cells(_curWord);
+    for (int ci = 0; ci < cur.length; ci++) {
+      if (cur[ci].$1 == r && cur[ci].$2 == c) {
+        return ci < _inputs[_curWord].length ? _inputs[_curWord][ci] : '';
+      }
+    }
+    // Other words' partial inputs
+    for (int wi = 0; wi < _words.length; wi++) {
+      if (wi == _curWord || _done[wi] == true) continue;
+      final cells = _cells(wi);
+      for (int ci = 0; ci < cells.length; ci++) {
+        if (cells[ci].$1 == r && cells[ci].$2 == c && ci < _inputs[wi].length) {
+          return _inputs[wi][ci];
+        }
+      }
+    }
+    return '';
+  }
+
+  // ── Input handling ────────────────────────────────────────────────────────
+
+  void _onChange(String val) {
+    final cleaned = val.toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+    final maxLen  = _words[_curWord].answer.length;
+    final capped  = cleaned.length > maxLen ? cleaned.substring(0, maxLen) : cleaned;
+
+    if (_ctrl.text != capped) {
+      _ctrl.value = _ctrl.value.copyWith(
+        text: capped,
+        selection: TextSelection.collapsed(offset: capped.length),
+      );
+    }
+    setState(() => _inputs[_curWord] = capped);
+
+    if (capped.length == maxLen) _checkAnswer(capped);
+  }
+
+  void _checkAnswer(String typed) {
+    final ok = typed == _words[_curWord].answer;
     setState(() {
-      _submitted = true;
-      _correct = ok;
+      _done[_curWord] = ok;
       if (ok) _pts += 15;
     });
-    Future.delayed(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-      final next = _cur + 1;
-      if (next >= _clues.length) {
-        widget.onDone(_pts);
-      } else {
+
+    if (ok) {
+      // Auto-advance after brief green flash
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (mounted) _advance();
+      });
+    }
+    // Wrong: stay on this word, user must tap Continue
+  }
+
+  void _dismissWrong() {
+    setState(() {
+      _done[_curWord] = null;
+      _inputs[_curWord] = '';
+      _ctrl.clear();
+    });
+    _advance();
+  }
+
+  void _advance() {
+    // Find next incomplete word
+    for (int i = 1; i <= _words.length; i++) {
+      final next = (_curWord + i) % _words.length;
+      if (_done[next] != true) {
         setState(() {
-          _cur = next;
-          _submitted = false;
-          _correct = false;
-          _ctrl.clear();
+          _curWord = next;
+          _ctrl.text = _inputs[next];
         });
+        _focus.requestFocus();
+        return;
       }
+    }
+    // All done
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) widget.onDone((_pts - _hintPenalty).clamp(0, 999));
     });
   }
 
+  // ── Hint ─────────────────────────────────────────────────────────────────
+
+  void _useHint() {
+    // If current word is already done, switch to next incomplete word first
+    if (_done[_curWord] == true) {
+      for (int i = 1; i <= _words.length; i++) {
+        final next = (_curWord + i) % _words.length;
+        if (_done[next] != true) {
+          setState(() => _curWord = next);
+          break;
+        }
+      }
+    }
+    if (_done[_curWord] == true) return; // all done
+    setState(() {
+      _hintPenalty += 20;
+      _hintText = 'Next letter revealed (−20 pts)';
+    });
+    _revealNextLetter();
+  }
+
+  void _revealNextLetter() {
+    final answer = _words[_curWord].answer;
+    final typed  = _inputs[_curWord];
+    if (typed.length >= answer.length) return;
+    final revealed = answer.substring(0, typed.length + 1);
+    setState(() => _inputs[_curWord] = revealed);
+    _ctrl.value = _ctrl.value.copyWith(
+      text: revealed,
+      selection: TextSelection.collapsed(offset: revealed.length),
+    );
+    if (revealed.length == answer.length) {
+      Future.delayed(const Duration(milliseconds: 120), () {
+        if (mounted) _checkAnswer(revealed);
+      });
+    }
+  }
+
+  void _tapCell(int r, int c) {
+    if (_gridAnswer[r][c] == '.') return;
+    // Find a word through this cell that isn't done
+    for (int i = 0; i < _words.length; i++) {
+      final wi = (_curWord + 1 + i) % _words.length; // start from next to allow toggle
+      if (_done[wi] == true) continue;
+      if (_inWord(wi, r, c)) {
+        setState(() {
+          _curWord = wi;
+          _ctrl.text = _inputs[wi];
+        });
+        _focus.requestFocus();
+        return;
+      }
+    }
+    // Fallback: pick any word through this cell
+    for (int wi = 0; wi < _words.length; wi++) {
+      if (_inWord(wi, r, c)) {
+        setState(() {
+          _curWord = wi;
+          _ctrl.text = _inputs[wi];
+        });
+        _focus.requestFocus();
+        return;
+      }
+    }
+  }
+
+  // ── Grid ─────────────────────────────────────────────────────────────────
+
+  Widget _buildGrid() {
+    const stride = _cellSize + _gap;
+    return GestureDetector(
+      onTapDown: (d) {
+        final c = (d.localPosition.dx / stride).floor();
+        final r = (d.localPosition.dy / stride).floor();
+        if (r >= 0 && r < 5 && c >= 0 && c < 6) _tapCell(r, c);
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(5, (r) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(6, (c) => _buildCell(r, c)),
+        )),
+      ),
+    );
+  }
+
+  Widget _buildCell(int r, int c) {
+    const stride = _cellSize + _gap;
+    if (_gridAnswer[r][c] == '.') {
+      return SizedBox(width: stride, height: stride);
+    }
+
+    final inCur   = _inWord(_curWord, r, c);
+    final curDone = _done[_curWord];
+    final letter  = _displayLetter(r, c);
+    final num     = _cellNums[r][c];
+
+    // Determine if this cell belongs to any confirmed word
+    bool isConfirmed = false;
+    for (int wi = 0; wi < _words.length; wi++) {
+      if (_done[wi] == true && _inWord(wi, r, c)) { isConfirmed = true; break; }
+    }
+
+    Color bg, borderColor;
+    Color textColor = Colors.white;
+
+    if (inCur) {
+      if (curDone == true)       { bg = _kOkBg;           borderColor = _kOkBdr; textColor = _kOk2; }
+      else if (curDone == false) { bg = _kNoBg;           borderColor = _kNoBdr; textColor = _kNo; }
+      else                       { bg = const Color(0xFF23205A); borderColor = _kHint; }
+    } else if (isConfirmed) {
+      bg = const Color(0xFF072B1F); borderColor = _kOkBdr; textColor = _kOk2;
+    } else {
+      bg = _kBg4; borderColor = _kBdr2;
+    }
+
+    return Container(
+      width: _cellSize,
+      height: _cellSize,
+      margin: const EdgeInsets.all(_gap / 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: borderColor, width: inCur ? 2 : 1.5),
+      ),
+      child: Stack(
+        children: [
+          if (num > 0)
+            Positioned(
+              top: 2, left: 3,
+              child: Text('$num',
+                style: const TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white54,
+                )),
+            ),
+          Center(
+            child: Text(letter,
+              style: TextStyle(
+                fontFamily: 'Nunito',
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+                color: textColor,
+              )),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Letter boxes (input preview) ──────────────────────────────────────────
+
+  Widget _buildLetterBoxes() {
+    final w      = _words[_curWord];
+    final typed  = _inputs[_curWord];
+    final state  = _done[_curWord];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(w.answer.length, (i) {
+        final letter = i < typed.length ? typed[i] : '';
+        final isActive = i == typed.length && state == null;
+        Color bg, border;
+        Color tc = _kText2;
+
+        if (state == true)  { bg = _kOkBg; border = _kOkBdr; tc = _kOk2; }
+        else if (state == false) { bg = _kNoBg; border = _kNoBdr; tc = _kNo; }
+        else if (isActive)  { bg = _kBg3;  border = _kHint; }
+        else                { bg = _kBg3;  border = _kBdr2; }
+
+        return Container(
+          width: 36, height: 42,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: border, width: isActive ? 2 : 1.5),
+          ),
+          child: Center(
+            child: Text(letter,
+              style: TextStyle(
+                fontFamily: 'Nunito',
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                color: tc,
+              )),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final c = _clues[_cur];
+    final w   = _words[_curWord];
+    final dir = w.across ? 'Across' : 'Down';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(14, 18, 14, 32),
       child: _GameCard(
         tag: 'Crossword',
         name: 'Management vocabulary',
         step: '${widget.gameNum}/${widget.total}',
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Mini progress dots
-          Row(
-            children: List.generate(_clues.length, (i) => Container(
-              width: 6, height: 6,
-              margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: i < _cur
-                    ? _kOk
-                    : i == _cur
-                        ? _kHint
-                        : _kBg4,
-              ),
-            )),
-          ),
-          const SizedBox(height: 14),
-          // Clue label
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: _kBg4,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: _kBdr2),
+        onHint: _useHint,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_hintText.isNotEmpty) ...[
+              _HintBanner(_hintText),
+              const SizedBox(height: 10),
+            ],
+            // Progress dots
+            Row(
+              children: List.generate(_words.length, (i) => Container(
+                width: 6, height: 6,
+                margin: const EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _done[i] == true ? _kOk
+                       : i == _curWord     ? _kHint
+                       : _kBg4,
+                ),
+              )),
             ),
-            child: Text(c.$1,
-                style: const TextStyle(
-                    fontFamily: 'Nunito',
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                    color: _kHint,
-                    letterSpacing: 0.5)),
-          ),
-          const SizedBox(height: 10),
-          Text(c.$2,
-              style: const TextStyle(
-                  fontSize: 14, color: _kText2, height: 1.6)),
-          const SizedBox(height: 4),
-          Text('${c.$3.length} letters',
-              style: TextStyle(
+            const SizedBox(height: 16),
+
+            // Grid
+            Center(child: _buildGrid()),
+            const SizedBox(height: 16),
+
+            // Current clue
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _kBg4,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: _kBdr2),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _kHint.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text('${w.num} $dir',
+                      style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                        color: _kHint,
+                      )),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(w.clue,
+                      style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        color: _kText2,
+                        height: 1.45,
+                      )),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 2),
+              child: Text('${w.answer.length} letters',
+                style: TextStyle(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
                   color: Colors.white.withValues(alpha: 0.35))),
-          const SizedBox(height: 12),
-          // Input
-          TextField(
-            controller: _ctrl,
-            enabled: !_submitted,
-            textCapitalization: TextCapitalization.characters,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2,
-              color: _submitted
-                  ? (_correct ? _kOk2 : _kNo)
-                  : _kText2,
             ),
-            decoration: InputDecoration(
-              hintText: 'TYPE ANSWER',
-              hintStyle: TextStyle(
-                  fontSize: 13,
-                  letterSpacing: 1,
-                  color: Colors.white.withValues(alpha: 0.2)),
-              filled: true,
-              fillColor: _submitted
-                  ? (_correct ? _kOkBg : _kNoBg)
-                  : _kBg3,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                    color: _submitted
-                        ? (_correct ? _kOkBdr : _kNoBdr)
-                        : _kBdr2),
+            const SizedBox(height: 14),
+
+            if (_done[_curWord] == false) ...[
+              // Wrong — show answer and wait for manual Continue
+              _FeedbackBox(
+                ok: false,
+                text: 'Not quite. The answer is: ${_words[_curWord].answer}',
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: _kBdr2),
+              const SizedBox(height: 10),
+              _ActionButton(label: 'Continue', enabled: true, onTap: _dismissWrong),
+            ] else ...[
+              // Ready to type (or just confirmed correct)
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  _buildLetterBoxes(),
+                  SizedBox(
+                    width: 1, height: 1,
+                    child: TextField(
+                      controller: _ctrl,
+                      focusNode: _focus,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      textCapitalization: TextCapitalization.characters,
+                      style: const TextStyle(color: Colors.transparent, fontSize: 1),
+                      cursorColor: Colors.transparent,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        filled: true,
+                        fillColor: Colors.transparent,
+                      ),
+                      onChanged: _onChange,
+                      enabled: _done[_curWord] == null,
+                    ),
+                  ),
+                ],
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: _kHint),
-              ),
-              disabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                    color: _correct ? _kOkBdr : _kNoBdr),
-              ),
-            ),
-            onSubmitted: (_) => _submit(),
-          ),
-          const SizedBox(height: 10),
-          _ActionButton(
-              label: 'Check',
-              enabled: !_submitted,
-              onTap: _submit),
-          if (_submitted) ...[
-            const SizedBox(height: 10),
-            _FeedbackBox(
-              ok: _correct,
-              text: _correct
-                  ? 'Correct! +15 pts  →  "${c.$3}"'
-                  : 'Not quite. The answer is: ${c.$3}',
-            ),
+              if (_done[_curWord] == true) ...[
+                const SizedBox(height: 10),
+                _FeedbackBox(ok: true, text: 'Correct! +15 pts'),
+              ],
+            ],
+
+            const SizedBox(height: 14),
+            // Clue list for reference
+            _ClueList(words: _words, done: _done, curWord: _curWord),
           ],
-        ]),
+        ),
       ),
+    );
+  }
+}
+
+class _ClueList extends StatelessWidget {
+  final List<_CWWord> words;
+  final List<bool?> done;
+  final int curWord;
+  const _ClueList({required this.words, required this.done, required this.curWord});
+
+  @override
+  Widget build(BuildContext context) {
+    final across = words.where((w) => w.across).toList();
+    final down   = words.where((w) => !w.across).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(color: Color(0xFF2A2550), height: 20),
+        _section('Across', across),
+        const SizedBox(height: 6),
+        _section('Down', down),
+      ],
+    );
+  }
+
+  Widget _section(String label, List<_CWWord> list) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+          style: const TextStyle(
+            fontFamily: 'Nunito', fontWeight: FontWeight.w800,
+            fontSize: 11, color: _kHint, letterSpacing: 0.5,
+          )),
+        const SizedBox(height: 4),
+        ...list.map((w) {
+          final idx = words.indexOf(w);
+          final isDone   = done[idx] == true;
+          final isCur    = idx == curWord;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Text(
+              '${w.num}. ${w.clue}',
+              style: TextStyle(
+                fontFamily: 'Nunito',
+                fontSize: 11,
+                color: isDone  ? _kOk2
+                     : isCur   ? _kText2
+                     : Colors.white.withValues(alpha: 0.32),
+                decoration: isDone ? TextDecoration.lineThrough : null,
+                decorationColor: _kOk2,
+              )),
+          );
+        }),
+      ],
     );
   }
 }
@@ -815,13 +1244,33 @@ class _MatchingGameState extends State<_MatchingGame> {
   String? _selTerm;
   String? _selDef;
   final Map<String, bool> _matched = {};
-  int _pts = 0;
+  int    _pts         = 0;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
   bool _allDone = false;
 
   @override
   void initState() {
     super.initState();
     _shuffledDefs = _pairs.map((p) => p.$2).toList()..shuffle();
+  }
+
+  void _useHint() {
+    if (_allDone) return;
+    for (final p in _pairs) {
+      if (!_matched.containsKey(p.$1)) {
+        setState(() {
+          _hintPenalty += 20;
+          _matched[p.$1] = true;
+          _pts += 15;
+          _hintText = 'Matched: ${p.$1} → ${p.$2} (−20 pts)';
+          _selTerm = null;
+          _selDef  = null;
+        });
+        _checkDone();
+        return;
+      }
+    }
   }
 
   String? _correctDefFor(String term) {
@@ -880,7 +1329,7 @@ class _MatchingGameState extends State<_MatchingGame> {
     if (_matched.length == _pairs.length) {
       setState(() { _allDone = true; });
       Future.delayed(const Duration(milliseconds: 900), () {
-        if (mounted) widget.onDone(_pts);
+        if (mounted) widget.onDone((_pts - _hintPenalty).clamp(0, 999));
       });
     }
   }
@@ -932,7 +1381,12 @@ class _MatchingGameState extends State<_MatchingGame> {
         tag: 'Matching',
         name: 'Connect the concepts',
         step: '${widget.gameNum}/${widget.total}',
+        onHint: _allDone ? null : _useHint,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (_hintText.isNotEmpty) ...[
+            _HintBanner(_hintText),
+            const SizedBox(height: 10),
+          ],
           const Text('Tap a term, then tap its definition.',
               style: TextStyle(fontSize: 13, color: _kText2, height: 1.65)),
           const SizedBox(height: 12),
@@ -1004,8 +1458,10 @@ class _WordOrderGameState extends State<_WordOrderGame> {
     ),
   ];
 
-  int _cur = 0;
-  int _pts = 0;
+  int    _cur         = 0;
+  int    _pts         = 0;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
   late List<String> _shuffled;
   late List<bool> _inBank;
   List<int> _zoneIndices = [];
@@ -1022,8 +1478,28 @@ class _WordOrderGameState extends State<_WordOrderGame> {
     _shuffled = List.from(_sentences[_cur].words)..shuffle();
     _inBank = List.filled(_shuffled.length, true);
     _zoneIndices = [];
-    _checked = false;
-    _correct = false;
+    _checked  = false;
+    _correct  = false;
+    _hintText = '';
+  }
+
+  void _useHint() {
+    if (_checked) return;
+    final correctWords = _sentences[_cur].words;
+    final nextPos = _zoneIndices.length;
+    if (nextPos >= correctWords.length) return;
+    final nextWord = correctWords[nextPos];
+    for (int i = 0; i < _shuffled.length; i++) {
+      if (_inBank[i] && _shuffled[i] == nextWord) {
+        setState(() {
+          _hintPenalty += 20;
+          _inBank[i] = false;
+          _zoneIndices.add(i);
+          _hintText = 'Next word placed: "$nextWord" (−20 pts)';
+        });
+        return;
+      }
+    }
   }
 
   void _tapBank(int idx) {
@@ -1051,18 +1527,37 @@ class _WordOrderGameState extends State<_WordOrderGame> {
       _correct = ok;
       if (ok) _pts += 20;
     });
-    Future.delayed(const Duration(milliseconds: 1100), () {
-      if (!mounted) return;
-      final next = _cur + 1;
-      if (next >= _sentences.length) {
-        widget.onDone(_pts);
-      } else {
-        setState(() {
-          _cur = next;
-          _initSentence();
-        });
-      }
-    });
+    if (ok) {
+      Future.delayed(const Duration(milliseconds: 1100), () {
+        if (!mounted) return;
+        _advance();
+      });
+    }
+    // Wrong: stay, user must tap Continue
+  }
+
+  void _dismissWrong() {
+    final next = _cur + 1;
+    if (next >= _sentences.length) {
+      widget.onDone((_pts - _hintPenalty).clamp(0, 999));
+    } else {
+      setState(() {
+        _cur = next;
+        _initSentence();
+      });
+    }
+  }
+
+  void _advance() {
+    final next = _cur + 1;
+    if (next >= _sentences.length) {
+      widget.onDone((_pts - _hintPenalty).clamp(0, 999));
+    } else {
+      setState(() {
+        _cur = next;
+        _initSentence();
+      });
+    }
   }
 
   @override
@@ -1074,7 +1569,12 @@ class _WordOrderGameState extends State<_WordOrderGame> {
         tag: 'Word order',
         name: 'Rebuild the sentence',
         step: '${widget.gameNum}/${widget.total}',
+        onHint: _checked ? null : _useHint,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (_hintText.isNotEmpty) ...[
+            _HintBanner(_hintText),
+            const SizedBox(height: 10),
+          ],
           Text(s.hint,
               style: TextStyle(
                   fontSize: 12,
@@ -1162,10 +1662,11 @@ class _WordOrderGameState extends State<_WordOrderGame> {
             }),
           ),
           const SizedBox(height: 12),
-          _ActionButton(
-              label: 'Check',
-              enabled: _zoneIndices.isNotEmpty && !_checked,
-              onTap: _check),
+          if (!_checked)
+            _ActionButton(
+                label: 'Check',
+                enabled: _zoneIndices.isNotEmpty,
+                onTap: _check),
           if (_checked) ...[
             const SizedBox(height: 10),
             _FeedbackBox(
@@ -1174,6 +1675,10 @@ class _WordOrderGameState extends State<_WordOrderGame> {
                   ? 'Correct! +20 pts'
                   : 'Answer: ${s.words.join(' ')}',
             ),
+            if (!_correct) ...[
+              const SizedBox(height: 10),
+              _ActionButton(label: 'Continue', enabled: true, onTap: _dismissWrong),
+            ],
           ],
         ]),
       ),
@@ -1226,10 +1731,12 @@ class _FillBlankGameState extends State<_FillBlankGame> {
     ),
   ];
 
-  int _cur = 0;
-  int _pts = 0;
+  int    _cur         = 0;
+  int    _pts         = 0;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
   bool _submitted = false;
-  bool _correct = false;
+  bool _correct   = false;
   final _ctrl = TextEditingController();
 
   @override
@@ -1238,29 +1745,50 @@ class _FillBlankGameState extends State<_FillBlankGame> {
     super.dispose();
   }
 
+  void _useHint() {
+    if (_submitted) return;
+    final blank = _blanks[_cur].blank;
+    setState(() {
+      _hintPenalty += 20;
+      _hintText = 'Starts with "${blank[0].toUpperCase()}" · ${blank.length} letters (−20 pts)';
+    });
+  }
+
   void _submit() {
     if (_submitted) return;
     final val = _ctrl.text.trim().toLowerCase();
     final ok = _blanks[_cur].accept.contains(val);
     setState(() {
       _submitted = true;
-      _correct = ok;
+      _correct   = ok;
       if (ok) _pts += 20;
     });
-    Future.delayed(const Duration(milliseconds: 1000), () {
-      if (!mounted) return;
-      final next = _cur + 1;
-      if (next >= _blanks.length) {
-        widget.onDone(_pts);
-      } else {
-        setState(() {
-          _cur = next;
-          _submitted = false;
-          _correct = false;
-          _ctrl.clear();
-        });
-      }
-    });
+    if (ok) {
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (!mounted) return;
+        _advance();
+      });
+    }
+    // Wrong: stay, user must tap Continue
+  }
+
+  void _dismissWrong() {
+    _advance();
+  }
+
+  void _advance() {
+    final next = _cur + 1;
+    if (next >= _blanks.length) {
+      widget.onDone((_pts - _hintPenalty).clamp(0, 999));
+    } else {
+      setState(() {
+        _cur       = next;
+        _submitted = false;
+        _correct   = false;
+        _hintText  = '';
+        _ctrl.clear();
+      });
+    }
   }
 
   @override
@@ -1272,7 +1800,12 @@ class _FillBlankGameState extends State<_FillBlankGame> {
         tag: 'Fill in the blank',
         name: 'Complete the sentence',
         step: '${widget.gameNum}/${widget.total}',
+        onHint: _submitted ? null : _useHint,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (_hintText.isNotEmpty) ...[
+            _HintBanner(_hintText),
+            const SizedBox(height: 10),
+          ],
           RichText(
             text: TextSpan(
               style: const TextStyle(
@@ -1325,10 +1858,11 @@ class _FillBlankGameState extends State<_FillBlankGame> {
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 10),
-          _ActionButton(
-              label: 'Submit',
-              enabled: !_submitted,
-              onTap: _submit),
+          if (!_submitted)
+            _ActionButton(
+                label: 'Submit',
+                enabled: true,
+                onTap: _submit),
           if (_submitted) ...[
             const SizedBox(height: 10),
             _FeedbackBox(
@@ -1337,6 +1871,10 @@ class _FillBlankGameState extends State<_FillBlankGame> {
                   ? 'Correct! +20 pts'
                   : 'The answer was "${b.blank}"',
             ),
+            if (!_correct) ...[
+              const SizedBox(height: 10),
+              _ActionButton(label: 'Continue', enabled: true, onTap: _dismissWrong),
+            ],
           ],
         ]),
       ),
@@ -1376,14 +1914,17 @@ class _WordCraftGameState extends State<_WordCraftGame> {
   late final Map<String, WcCombo> _comboMap;
   late final Map<String, String> _iconMap;
   late final int _targetCount;
+  late final List<WcCombo> _combos;
   final List<_WCEl> _canvas = [];
   final Set<String> _discovered = {};
   late final List<(String, String)> _tray;
 
-  int _craftPts = 0;
+  int    _craftPts    = 0;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
   WcCombo? _flash;
   bool _flashIsNew = false;
-  bool _finishing = false;
+  bool _finishing  = false;
   int? _dragIdx;
   Size _canvasSize = const Size(300, 300);
 
@@ -1394,6 +1935,7 @@ class _WordCraftGameState extends State<_WordCraftGame> {
     super.initState();
     final data = WordCraftData.getData(widget.deptId);
     _targetCount = data.targetCount;
+    _combos = data.combos;
     _tray = data.seeds.map((s) => (s.label, s.icon)).toList();
     _comboMap = {};
     _iconMap = { for (final s in data.seeds) s.label: s.icon };
@@ -1401,6 +1943,19 @@ class _WordCraftGameState extends State<_WordCraftGame> {
       _comboMap['${c.k1}+${c.k2}'] = c;
       _comboMap['${c.k2}+${c.k1}'] = c;
       _iconMap[c.result] = c.icon;
+    }
+  }
+
+  void _useHint() {
+    if (_finishing) return;
+    for (final c in _combos) {
+      if (!_discovered.contains(c.result)) {
+        setState(() {
+          _hintPenalty += 20;
+          _hintText = 'Try combining: ${c.k1} + ${c.k2} (−20 pts)';
+        });
+        return;
+      }
     }
   }
 
@@ -1480,7 +2035,7 @@ class _WordCraftGameState extends State<_WordCraftGame> {
     if (_discovered.length >= _targetCount && !_finishing) {
       _finishing = true;
       Future.delayed(const Duration(milliseconds: 2200), () {
-        if (mounted) widget.onDone(_craftPts);
+        if (mounted) widget.onDone((_craftPts - _hintPenalty).clamp(0, 999));
       });
     }
   }
@@ -1498,7 +2053,34 @@ class _WordCraftGameState extends State<_WordCraftGame> {
             const Spacer(),
             Text('$_craftPts pts',
                 style: const TextStyle(fontSize: 10, color: _kOk, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            if (!_finishing)
+              GestureDetector(
+                onTap: _useHint,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _kWarnBg,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(color: _kWarnBdr),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lightbulb_outline_rounded, size: 11, color: _kWarn),
+                      SizedBox(width: 4),
+                      Text('Hint', style: TextStyle(
+                          fontFamily: 'Nunito', fontWeight: FontWeight.w800,
+                          fontSize: 10, color: _kWarn)),
+                    ],
+                  ),
+                ),
+              ),
           ]),
+          if (_hintText.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _HintBanner(_hintText),
+          ],
           const SizedBox(height: 3),
           const Text('Combine Management Concepts',
               style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w900, fontSize: 20, color: _kText2)),
@@ -1746,13 +2328,23 @@ class _ScenarioGameState extends State<_ScenarioGame> {
     (ok: false, pts: 10, text: '"Almost" is not alignment. And waiting until morning is a gamble. Act now. +10 pts'),
   ];
 
-  int? _picked;
+  int?   _picked;
+  int    _hintPenalty = 0;
+  String _hintText    = '';
+
+  void _useHint() {
+    if (_picked != null) return;
+    setState(() {
+      _hintPenalty += 20;
+      _hintText = 'Stakeholder alignment = individual yeses, not a broadcast. Who still needs a real confirmation before tomorrow? (−20 pts)';
+    });
+  }
 
   void _pick(int i) {
     if (_picked != null) return;
     setState(() { _picked = i; });
     Future.delayed(const Duration(milliseconds: 1400), () {
-      if (mounted) widget.onDone(_feedback[i].pts);
+      if (mounted) widget.onDone((_feedback[i].pts - _hintPenalty).clamp(0, 999));
     });
   }
 
@@ -1764,7 +2356,12 @@ class _ScenarioGameState extends State<_ScenarioGame> {
         tag: 'Scenario',
         name: 'The real test',
         step: '${widget.gameNum}/${widget.total}',
+        onHint: _picked == null ? _useHint : null,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (_hintText.isNotEmpty) ...[
+            _HintBanner(_hintText),
+            const SizedBox(height: 10),
+          ],
           // Scene
           Container(
             padding: const EdgeInsets.all(13),
@@ -1890,11 +2487,15 @@ class _ScenarioGameState extends State<_ScenarioGame> {
 class _GameCard extends StatelessWidget {
   final String tag, name, step;
   final Widget child;
-  const _GameCard(
-      {required this.tag,
-      required this.name,
-      required this.step,
-      required this.child});
+  final VoidCallback? onHint;
+
+  const _GameCard({
+    required this.tag,
+    required this.name,
+    required this.step,
+    required this.child,
+    this.onHint,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1910,8 +2511,7 @@ class _GameCard extends StatelessWidget {
           children: [
             Row(children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
                   color: _kBg4,
                   borderRadius: BorderRadius.circular(20),
@@ -1919,21 +2519,45 @@ class _GameCard extends StatelessWidget {
                 ),
                 child: Text(tag,
                     style: const TextStyle(
-                        fontSize: 9,
-                        letterSpacing: 1.4,
-                        color: _kHint)),
+                        fontSize: 9, letterSpacing: 1.4, color: _kHint)),
               ),
               const SizedBox(width: 8),
-              Text(name,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: _kText2)),
-              const Spacer(),
+              Expanded(
+                child: Text(name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w500, color: _kText2)),
+              ),
               Text(step,
                   style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.3))),
+                      fontSize: 11, color: Colors.white.withValues(alpha: 0.3))),
+              if (onHint != null) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onHint,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _kWarnBg,
+                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(color: _kWarnBdr),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lightbulb_outline_rounded,
+                            size: 11, color: _kWarn),
+                        SizedBox(width: 4),
+                        Text('Hint',
+                            style: TextStyle(
+                                fontFamily: 'Nunito',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 10,
+                                color: _kWarn)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ]),
             const SizedBox(height: 14),
             child,
@@ -2032,6 +2656,37 @@ class _FeedbackBox extends StatelessWidget {
                 fontSize: 11.5,
                 color: ok ? _kOk2 : _kNo,
                 height: 1.65)),
+      );
+}
+
+class _HintBanner extends StatelessWidget {
+  final String text;
+  const _HintBanner(this.text);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: _kWarnBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _kWarnBdr),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.lightbulb_rounded, size: 13, color: _kWarn),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(text,
+                  style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 12,
+                      color: _kWarn,
+                      height: 1.5)),
+            ),
+          ],
+        ),
       );
 }
 
