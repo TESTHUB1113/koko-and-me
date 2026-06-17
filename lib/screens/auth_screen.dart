@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'jungle_map_screen.dart';
 import 'onboarding_screen.dart';
 import '../data/user_profile.dart';
@@ -35,11 +36,14 @@ class _AuthScreenState extends State<AuthScreen> {
   bool   _loading          = false;
   String _errorMessage     = '';
 
+  // Firebase SDK fires auth callbacks on a non-platform thread on Windows, crashing the app.
+  // On Windows we bypass Firebase entirely and store auth data locally only.
+  static bool get _isWindows =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
   @override
   void initState() {
     super.initState();
-    // Sign out any leftover Firebase session so the auth screen starts clean
-    AuthService.signOut().catchError((_) {});
   }
 
   @override
@@ -48,6 +52,28 @@ class _AuthScreenState extends State<AuthScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  // ── Auth locale (Windows uniquement) ─────────────────────────────────────
+  Future<void> _onLocalSuccess({
+    required String name,
+    required String email,
+    required bool isNewUser,
+  }) async {
+    await UserProfile.save(
+      newName:  name.isNotEmpty  ? name  : null,
+      newEmail: email.isNotEmpty ? email : null,
+    );
+    if (!mounted) return;
+    final next = isNewUser ? const OnboardingScreen() : const JungleMapScreen();
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (ctx, anim, _) => next,
+        transitionsBuilder: (ctx, anim, _, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   // ── Après une authentification réussie ────────────────────────────────────
@@ -95,6 +121,11 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() { _loading = true; _errorMessage = ''; });
 
     try {
+      if (_isWindows) {
+        // Windows: skip Firebase entirely (native SDK crashes on background thread)
+        await _onLocalSuccess(name: name, email: email, isNewUser: _isSignUp);
+        return;
+      }
       if (_isSignUp) {
         await AuthService.signUpWithEmail(
           name:     name,
@@ -113,6 +144,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Google Sign-In ────────────────────────────────────────────────────────
   Future<void> _googleSignIn() async {
+    if (_isWindows) {
+      // Google sign-in also triggers the Firebase threading crash on Windows
+      setState(() => _errorMessage = 'Utilisez email/mot de passe sur Windows.');
+      return;
+    }
     setState(() { _loading = true; _errorMessage = ''; });
     try {
       final credential = await AuthService.signInWithGoogle();
@@ -149,8 +185,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Continuer sans compte (mode invité) ──────────────────────────────────
   Future<void> _continueAsGuest() async {
-    // Sign out from Firebase so no account session remains
-    try { await AuthService.signOut(); } catch (_) {}
     // Guests don't get a personalised path — clear any dept chosen on onboarding
     await UserProfile.save(newFocusDept: '');
     final name = _nameCtrl.text.trim();
@@ -476,24 +510,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ],
-              ),
-
-              // ── Continuer sans compte ────────────────────────────────────
-              const SizedBox(height: 14),
-              Center(
-                child: TextButton(
-                  onPressed: _loading ? null : _continueAsGuest,
-                  child: Text(
-                    'Continuer sans compte',
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.28),
-                      decoration: TextDecoration.underline,
-                      decorationColor: Colors.white.withValues(alpha: 0.18),
-                    ),
-                  ),
-                ),
               ),
 
               const SizedBox(height: 24),
