@@ -71,13 +71,15 @@ class _JungleMapScreenState extends State<JungleMapScreen>
     super.dispose();
   }
 
-  // Sequential unlock: finish position N to unlock position N+1.
+  // Sequential unlock: position N is active only if N-1 is itself active/mine
+  // AND its test is done. Recursive so old saved data can't skip the chain.
   NodeRole _getRole(int index) {
     final id = _orderedDepts[index].id;
     if (DeptProgress.getStars(id) >= 3) return NodeRole.mine;
     if (index == 0) return NodeRole.active;
-    final prevId = _orderedDepts[index - 1].id;
-    if (!DeptProgress.isTestDone(prevId)) return NodeRole.locked;
+    final prevRole = _getRole(index - 1);
+    if (prevRole == NodeRole.locked) return NodeRole.locked;
+    if (!DeptProgress.isTestDone(_orderedDepts[index - 1].id)) return NodeRole.locked;
     return NodeRole.active;
   }
 
