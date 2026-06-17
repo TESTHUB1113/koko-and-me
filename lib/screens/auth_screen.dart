@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'jungle_map_screen.dart';
 import '../data/user_profile.dart';
 import '../services/auth_service.dart';
@@ -166,12 +165,8 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
-  static bool get _isWindows =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-
   @override
   Widget build(BuildContext context) {
-    if (_isWindows) return _buildWindowsNotice(context);
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -491,78 +486,6 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
 
               const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWindowsNotice(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/images/koko.png',
-                height: 120,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) =>
-                    const Icon(Icons.pets, size: 80, color: Colors.white24),
-              ),
-              const SizedBox(height: 32),
-              const Text(
-                'Account login is available\non the mobile app only',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Nunito',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                  color: Colors.white,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Download koko&me on Android to create\nor access your account.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Nunito',
-                  fontSize: 13,
-                  color: Colors.white.withValues(alpha: 0.45),
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 40),
-              GestureDetector(
-                onTap: _continueAsGuest,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [_kGrad1, _kGrad2],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'Continue without account →',
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),

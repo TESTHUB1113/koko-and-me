@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +11,17 @@ import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Catch all unhandled Flutter/Dart errors so the app doesn't crash
+  // (needed on Windows where Firebase auth fires callbacks off the main thread)
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Caught platform error: $error');
+    return true; // handled — don't crash
+  };
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -30,7 +42,12 @@ Future<void> main() async {
     UserProfile.load(),
     NotificationService.init(),
   ]);
-  runApp(const KokoMeApp());
+  runZonedGuarded(
+    () => runApp(const KokoMeApp()),
+    (error, stack) {
+      debugPrint('Caught zone error: $error');
+    },
+  );
 }
 
 class KokoMeApp extends StatelessWidget {
