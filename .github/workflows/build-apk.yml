@@ -1,12 +1,12 @@
-name: Build Android APK
+name: Build
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-android:
+    name: Android APK
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -19,9 +19,6 @@ jobs:
         with:
           flutter-version: '3.38.7'
           channel: stable
-
-      - name: Flutter doctor
-        run: flutter doctor -v
 
       - name: Install dependencies
         run: flutter pub get
@@ -37,3 +34,33 @@ jobs:
           name: koko-and-me-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
+
+  build-macos:
+    name: macOS App
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build macOS app
+        run: flutter build macos --release
+
+      - name: Zip .app bundle
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "build/macos/Build/Products/Release/koko_and_me.app" \
+            "koko-and-me-macos.zip"
+
+      - name: Upload macOS app
+        uses: actions/upload-artifact@v4
+        with:
+          name: koko-and-me-macos
+          path: koko-and-me-macos.zip
+          retention-days: 14
