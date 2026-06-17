@@ -140,6 +140,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Continuer sans compte (mode invité) ──────────────────────────────────
   Future<void> _continueAsGuest() async {
+    // Guests don't get a personalised path — clear any dept chosen on onboarding
+    await UserProfile.save(newFocusDept: '');
     final name = _nameCtrl.text.trim();
     if (name.isNotEmpty) {
       await UserProfile.save(newName: name);
