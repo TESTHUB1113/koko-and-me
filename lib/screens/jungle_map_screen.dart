@@ -71,12 +71,13 @@ class _JungleMapScreenState extends State<JungleMapScreen>
     super.dispose();
   }
 
-  NodeRole _getRole(String id) {
+  // Sequential unlock: finish position N to unlock position N+1.
+  NodeRole _getRole(int index) {
+    final id = _orderedDepts[index].id;
     if (DeptProgress.getStars(id) >= 3) return NodeRole.mine;
-    if (UserProfile.focusDept.isNotEmpty) {
-      final focusDone = DeptProgress.getStars(UserProfile.focusDept) >= 3;
-      if (!focusDone && id != UserProfile.focusDept) return NodeRole.locked;
-    }
+    if (index == 0) return NodeRole.active;
+    final prevId = _orderedDepts[index - 1].id;
+    if (!DeptProgress.isTestDone(prevId)) return NodeRole.locked;
     return NodeRole.active;
   }
 
@@ -206,7 +207,7 @@ class _JungleMapScreenState extends State<JungleMapScreen>
             ...List.generate(_orderedDepts.length, (i) {
               final dept      = _orderedDepts[i];
               final pos       = nodePositions[i];
-              final role      = _getRole(dept.id);
+              final role      = _getRole(i);
               final isFocused = UserProfile.focusDept == dept.id;
               return Positioned(
                 left: pos.dx,

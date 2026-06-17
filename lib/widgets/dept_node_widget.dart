@@ -51,16 +51,13 @@ class _DeptNodeWidgetState extends State<DeptNodeWidget>
 
   @override
   Widget build(BuildContext context) {
-    final dept   = widget.dept;
-    final role   = widget.role;
-    final size   = widget.size;
-    final isMine = role == NodeRole.mine;
+    final dept     = widget.dept;
+    final role     = widget.role;
+    final size     = widget.size;
+    final isMine   = role == NodeRole.mine;
+    final isLocked = role == NodeRole.locked;
 
-    return GestureDetector(
-      onTap: widget.onTap,
-      child: SizedBox(
-        width: size + 20,
-        child: Column(
+    Widget column = Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isMine) _CrownWidget(color: dept.color),
@@ -125,7 +122,23 @@ class _DeptNodeWidgetState extends State<DeptNodeWidget>
               ),
             ],
           ],
-        ),
+    );
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: SizedBox(
+        width: size + 20,
+        child: isLocked
+            ? ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0,      0,      0,      1, 0,
+                ]),
+                child: column,
+              )
+            : column,
       ),
     );
   }
@@ -150,7 +163,7 @@ class _NodeBubble extends StatelessWidget {
             : dept.color.withValues(alpha: 0.85);
 
     return Opacity(
-      opacity: isSecondary ? 0.65 : isLocked ? 0.3 : 1.0,
+      opacity: isSecondary ? 0.65 : 1.0,
       child: Container(
         width: size, height: size,
         decoration: BoxDecoration(
