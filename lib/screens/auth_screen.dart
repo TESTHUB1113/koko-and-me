@@ -35,6 +35,13 @@ class _AuthScreenState extends State<AuthScreen> {
   String _errorMessage     = '';
 
   @override
+  void initState() {
+    super.initState();
+    // Sign out any leftover Firebase session so the auth screen starts clean
+    AuthService.signOut().catchError((_) {});
+  }
+
+  @override
   void dispose() {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
@@ -140,6 +147,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Continuer sans compte (mode invité) ──────────────────────────────────
   Future<void> _continueAsGuest() async {
+    // Sign out from Firebase so no account session remains
+    try { await AuthService.signOut(); } catch (_) {}
     // Guests don't get a personalised path — clear any dept chosen on onboarding
     await UserProfile.save(newFocusDept: '');
     final name = _nameCtrl.text.trim();
