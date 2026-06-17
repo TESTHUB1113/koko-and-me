@@ -18,6 +18,9 @@ const _kNo    = Color(0xFFF7C1C1);
 const _kNoBg  = Color(0xFF1A0808);
 const _kNoBdr = Color(0xFF791F1F);
 const _kBrand = Color(0xFF3C3489);
+const _kWarn    = Color(0xFFE8A84C);
+const _kWarnBg  = Color(0xFF221500);
+const _kWarnBdr = Color(0xFF6B4200);
 
 // ─── MAIN SCREEN ──────────────────────────────────────────────────────────────
 class ManagementTestScreen extends StatefulWidget {
@@ -190,19 +193,94 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
         ),
       );
 
+  // 0=not played  1=0pts(red+X)  2=1–10pts(red)  3=11–<half(orange)  4=≥half(green)
+  int _modeStatusLevel(int i) {
+    if (!_scores.containsKey(i)) return 0;
+    final score = _scores[i]!;
+    final half = _modes[i].maxPts / 2;
+    if (score == 0) return 1;
+    if (score <= 10) return 2;
+    if (score < half) return 3;
+    return 4;
+  }
+
   Widget _buildModeCard(BuildContext context, int i) {
-    final mode = _modes[i];
-    final done = _scores.containsKey(i);
+    final mode  = _modes[i];
+    final level = _modeStatusLevel(i);
     final score = _scores[i];
+
+    final Color cardBg, cardBdr, circleBg, circleBdr, labelColor;
+    switch (level) {
+      case 1:
+      case 2:
+        cardBg     = _kNoBg;
+        cardBdr    = _kNoBdr;
+        circleBg   = const Color(0xFF2B0808);
+        circleBdr  = _kNoBdr;
+        labelColor = _kNo;
+      case 3:
+        cardBg     = _kWarnBg;
+        cardBdr    = _kWarnBdr;
+        circleBg   = const Color(0xFF2A1800);
+        circleBdr  = _kWarnBdr;
+        labelColor = _kWarn;
+      case 4:
+        cardBg     = const Color(0xFF05201A);
+        cardBdr    = _kOkBdr;
+        circleBg   = _kOkBg;
+        circleBdr  = _kOkBdr;
+        labelColor = _kOk;
+      default:
+        cardBg     = _kBg2;
+        cardBdr    = const Color(0xFF1E1B3A);
+        circleBg   = _kBg4;
+        circleBdr  = _kBdr2;
+        labelColor = _kText2;
+    }
+
+    final Widget trailing;
+    if (level == 0) {
+      trailing = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const Icon(Icons.play_arrow_rounded, size: 20, color: _kHint),
+          Text('${mode.maxPts} pts',
+              style: TextStyle(fontSize: 10, color: Colors.white.withValues(alpha: 0.28))),
+        ],
+      );
+    } else if (level == 1) {
+      trailing = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const Icon(Icons.cancel_rounded, size: 16, color: _kNo),
+          const SizedBox(height: 2),
+          Text('$score pts', style: const TextStyle(fontSize: 10, color: _kNo)),
+        ],
+      );
+    } else {
+      final Color tc   = level == 4 ? _kOk : (level == 3 ? _kWarn : _kNo);
+      final IconData ic = level == 4
+          ? Icons.check_circle_outline_rounded
+          : Icons.radio_button_unchecked;
+      trailing = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Icon(ic, size: 16, color: tc),
+          const SizedBox(height: 2),
+          Text('$score pts', style: TextStyle(fontSize: 10, color: tc)),
+        ],
+      );
+    }
+
     return GestureDetector(
       onTap: () => _openGame(context, i),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: done ? const Color(0xFF05201A) : _kBg2,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: done ? _kOkBdr : const Color(0xFF1E1B3A)),
+          border: Border.all(color: cardBdr),
         ),
         child: Row(
           children: [
@@ -211,12 +289,10 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
               height: 46,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: done ? _kOkBg : _kBg4,
-                border: Border.all(color: done ? _kOkBdr : _kBdr2),
+                color: circleBg,
+                border: Border.all(color: circleBdr),
               ),
-              child: Center(
-                  child: Text(mode.icon,
-                      style: const TextStyle(fontSize: 20))),
+              child: Center(child: Text(mode.icon, style: const TextStyle(fontSize: 20))),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -228,7 +304,7 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
                           fontFamily: 'Nunito',
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
-                          color: done ? _kOk : _kText2)),
+                          color: labelColor)),
                   const SizedBox(height: 2),
                   Text(mode.desc,
                       style: TextStyle(
@@ -238,28 +314,7 @@ class _ManagementTestScreenState extends State<ManagementTestScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            done
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Icon(Icons.check_circle_outline_rounded,
-                          size: 16, color: _kOk),
-                      const SizedBox(height: 2),
-                      Text('$score pts',
-                          style: const TextStyle(fontSize: 10, color: _kOk)),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Icon(Icons.play_arrow_rounded,
-                          size: 20, color: _kHint),
-                      Text('${mode.maxPts} pts',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white.withValues(alpha: 0.28))),
-                    ],
-                  ),
+            trailing,
           ],
         ),
       ),
