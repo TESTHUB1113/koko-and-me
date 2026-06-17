@@ -65,11 +65,10 @@ class _IntroScreenState extends State<IntroScreen>
     super.dispose();
   }
 
-  /// "Get Started" → Onboarding (choix de département) → Auth
   void _goToAuth() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) => const OnboardingScreen(),
+        pageBuilder: (ctx, anim, _) => const AuthScreen(),
         transitionsBuilder: (ctx, anim, sec, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),

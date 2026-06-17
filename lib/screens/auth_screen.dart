@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'jungle_map_screen.dart';
+import 'onboarding_screen.dart';
 import '../data/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
@@ -50,8 +51,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ── Après une authentification réussie ────────────────────────────────────
-  Future<void> _onAuthSuccess() async {
-    // Sauvegarder le profil localement (nom saisi ou displayName Firebase)
+  Future<void> _onAuthSuccess({bool isNewUser = false}) async {
     final name  = _nameCtrl.text.trim().isNotEmpty
         ? _nameCtrl.text.trim()
         : (AuthService.displayName ?? '');
@@ -62,13 +62,14 @@ class _AuthScreenState extends State<AuthScreen> {
       newEmail: email.isNotEmpty ? email : null,
     );
 
-    // Pull depuis Firestore (nouveau compte → push, compte existant → pull)
     await SyncService.pullFromCloud();
 
     if (!mounted) return;
+    // New sign-up → choose department first; returning login → go straight to map
+    final next = isNewUser ? const OnboardingScreen() : const JungleMapScreen();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) => const JungleMapScreen(),
+        pageBuilder: (ctx, anim, _) => next,
         transitionsBuilder: (ctx, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),
@@ -104,7 +105,7 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         await AuthService.signInWithEmail(email: email, password: password);
       }
-      await _onAuthSuccess();
+      await _onAuthSuccess(isNewUser: _isSignUp);
     } on AuthException catch (e) {
       if (mounted) setState(() { _errorMessage = e.message; _loading = false; });
     }
@@ -121,13 +122,14 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
       // Créer le document si c'est un nouveau compte Google
-      if (credential.additionalUserInfo?.isNewUser == true) {
+      final newUser = credential.additionalUserInfo?.isNewUser == true;
+      if (newUser) {
         await SyncService.createUserDocument(
           name:  AuthService.displayName ?? '',
           email: credential.user?.email ?? '',
         );
       }
-      await _onAuthSuccess();
+      await _onAuthSuccess(isNewUser: newUser);
     } on AuthException catch (e) {
       if (mounted) setState(() { _errorMessage = e.message; _loading = false; });
     }

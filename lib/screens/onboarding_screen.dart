@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/department.dart';
 import '../data/user_profile.dart';
-import 'auth_screen.dart';
+import 'jungle_map_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -43,7 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) => const AuthScreen(),
+        pageBuilder: (ctx, anim, _) => const JungleMapScreen(),
         transitionsBuilder: (ctx, anim, sec, child) => FadeTransition(
           opacity: anim,
           child: ScaleTransition(
