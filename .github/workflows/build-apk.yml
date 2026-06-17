@@ -17,13 +17,19 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.38.7'
           channel: stable
+
+      - name: Flutter doctor
+        run: flutter doctor -v
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build APK (ARM64 for Android phones)
         run: flutter build apk --debug --target-platform android-arm64
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
