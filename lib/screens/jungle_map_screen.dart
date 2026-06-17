@@ -72,13 +72,27 @@ class _JungleMapScreenState extends State<JungleMapScreen>
   }
 
   NodeRole _getRole(String id) {
-    // Utilise la progression persistée au lieu des LessonState const
     if (DeptProgress.getStars(id) >= 3) return NodeRole.mine;
+    if (UserProfile.focusDept.isNotEmpty) {
+      final focusDone = DeptProgress.getStars(UserProfile.focusDept) >= 3;
+      if (!focusDone && id != UserProfile.focusDept) return NodeRole.locked;
+    }
     return NodeRole.active;
   }
 
+  List<Department> get _orderedDepts {
+    if (UserProfile.focusDept.isEmpty) return allDepartments;
+    final idx = allDepartments.indexWhere((d) => d.id == UserProfile.focusDept);
+    if (idx <= 0) return allDepartments;
+    return [
+      allDepartments[idx],
+      ...allDepartments.sublist(0, idx),
+      ...allDepartments.sublist(idx + 1),
+    ];
+  }
+
   void _onDeptTapped(Department dept) {
-    final idx = allDepartments.indexOf(dept);
+    final idx = _orderedDepts.indexOf(dept);
     final pos = nodePositions[idx];
 
     // Move Koko
@@ -182,15 +196,15 @@ class _JungleMapScreenState extends State<JungleMapScreen>
                 size: const Size(mapWidth, mapHeight),
                 painter: JunglePathPainter(
                   nodePositions: nodePositions,
-                  departments: allDepartments,
+                  departments: _orderedDepts,
                   activeNodeIdx: _activeNodeIdx,
                   pathProgress: _pathAnim.value,
                 ),
               ),
             ),
 
-            ...List.generate(allDepartments.length, (i) {
-              final dept      = allDepartments[i];
+            ...List.generate(_orderedDepts.length, (i) {
+              final dept      = _orderedDepts[i];
               final pos       = nodePositions[i];
               final role      = _getRole(dept.id);
               final isFocused = UserProfile.focusDept == dept.id;
@@ -202,7 +216,7 @@ class _JungleMapScreenState extends State<JungleMapScreen>
                   children: [
                     DeptNodeWidget(
                       dept: dept, role: role, size: nodeSize,
-                      onTap: () => _onDeptTapped(dept),
+                      onTap: role == NodeRole.locked ? () {} : () => _onDeptTapped(dept),
                     ),
                     // Étoile focus dept choisi à l'onboarding
                     if (isFocused)
