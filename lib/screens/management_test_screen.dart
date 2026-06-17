@@ -2153,6 +2153,11 @@ class _GamePageState extends State<_GamePage> {
     else if (pct >= 55) label = 'Good job';
     else label = 'Keep practising';
 
+    final Color scoreColor;
+    if (score <= 10) scoreColor = _kNo;
+    else if (score < widget.maxPts / 2) scoreColor = _kWarn;
+    else scoreColor = _kOk;
+
     return SingleChildScrollView(
       key: const ValueKey('end'),
       padding: const EdgeInsets.fromLTRB(24, 48, 24, 60),
@@ -2172,7 +2177,7 @@ class _GamePageState extends State<_GamePage> {
             width: 100, height: 100,
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: _kOk, width: 2)),
+                border: Border.all(color: scoreColor, width: 2)),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -2181,25 +2186,25 @@ class _GamePageState extends State<_GamePage> {
                   duration: const Duration(milliseconds: 900),
                   curve: Curves.easeOut,
                   builder: (_, val, __) => Text('$val',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontFamily: 'Nunito',
                           fontWeight: FontWeight.w800,
                           fontSize: 32,
-                          color: _kOk)),
+                          color: scoreColor)),
                 ),
-                const Text('pts',
+                Text('pts',
                     style: TextStyle(
-                        fontSize: 10, color: _kOk, letterSpacing: 0.8)),
+                        fontSize: 10, color: scoreColor, letterSpacing: 0.8)),
               ],
             ),
           ),
           const SizedBox(height: 12),
           Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontFamily: 'Nunito',
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
-                  color: _kOk)),
+                  color: scoreColor)),
           Text('$score / ${widget.maxPts} pts',
               style: TextStyle(
                   fontSize: 12,
