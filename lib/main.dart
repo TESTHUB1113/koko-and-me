@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,27 +13,52 @@ import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Caught platform error: $error');
+    return true;
+  };
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  // Firebase graceful fallback si pas encore configuré (placeholder keys)
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (_) {
-    // Firebase non configuré l'app démarre en mode local uniquement.
-    // Exécuter `flutterfire configure` pour activer l'authentification.
+
+  // Firebase is not initialized on Windows: its native SDK fires auth-state
+  // callbacks on a C++ background thread, which crashes Flutter immediately.
+  // All Firebase calls are guarded with null-checks so the app runs locally.
+  final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  // Notifications use flutter_local_notifications which only ships Android/iOS
+  // settings — calling init() on macOS or Windows throws before runApp().
+  final isMobile  = !kIsWeb && (
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS);
+  if (!isWindows) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } catch (_) {}
   }
-  // Charger toutes les données persistées avant le démarrage de l'app
-  await Future.wait([
-    UserProgress.load(),
-    DeptProgress.load(),
-    UserProfile.load(),
-    NotificationService.init(),
-  ]);
-  runApp(const KokoMeApp());
+  // Load all persisted data before the app starts.
+  // Wrap in try/catch so a platform init failure never leaves a black screen.
+  try {
+    await Future.wait([
+      UserProgress.load(),
+      DeptProgress.load(),
+      UserProfile.load(),
+      if (isMobile) NotificationService.init(),
+    ]);
+  } catch (_) {}
+  runZonedGuarded(
+    () => runApp(const KokoMeApp()),
+    (error, stack) {
+      debugPrint('Caught zone error: $error');
+    },
+  );
 }
 
 class KokoMeApp extends StatelessWidget {

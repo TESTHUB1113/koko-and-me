@@ -66,6 +66,16 @@ class UserProfile {
     return ids.where((id) => DeptProgress.isTestDone(id)).length;
   }
 
+  // ── Effacement des données liées à l'identité (changement de compte) ────
+  // Ne touche pas name/email : ils sont réécrits par _onAuthSuccess juste avant.
+  static Future<void> clearAllLocal() async {
+    avatarPath = '';
+    focusDept  = '';
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('profile_avatar_path');
+    await prefs.remove('profile_focus_dept');
+  }
+
   // ── Pour les tests unitaires ─────────────────────────────────────────────
   static void resetForTesting() {
     name      = '';

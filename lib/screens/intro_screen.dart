@@ -65,11 +65,10 @@ class _IntroScreenState extends State<IntroScreen>
     super.dispose();
   }
 
-  /// "Get Started" → Onboarding (choix de département) → Auth
   void _goToAuth() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) => const OnboardingScreen(),
+        pageBuilder: (ctx, anim, _) => const AuthScreen(),
         transitionsBuilder: (ctx, anim, sec, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),
@@ -158,8 +157,9 @@ class _IntroScreenState extends State<IntroScreen>
 
           SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1100),
               child: Column(
                 children: [
                   // ── NAV
@@ -198,6 +198,7 @@ class _IntroScreenState extends State<IntroScreen>
                 ],
               ),
             ),
+          ),
           ),
         ],
       ),
@@ -420,43 +421,51 @@ class _IntroScreenState extends State<IntroScreen>
     ];
 
     return Container(
-      color: const Color(0xFFF7F5FF), // light section like LingoDeer's white
+      color: const Color(0xFFF7F5FF),
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-      child: Column(
-        children: [
-          // Section title
-          const Text(
-            'Why Koko&me?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Nunito',
-              fontWeight: FontWeight.w900,
-              fontSize: 24,
-              color: Color(0xFF1A0A3A),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Most of us spent years surviving English...From school, exams, presentations to cover letters : We got through it. Then we stepped into the workplace and discovered a whole new language hiding inside the one we thought we knew. Gross margin. Net revenue. Stakeholder alignment. Strategic headcount. Suddenly fluent isn\'t enough...you need to sound like you belong in the room. And nobody hands you a guide for that.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: const Color(0xFF1A0A3A).withValues(alpha: 0.5),
-            ),
-          ),
-          const SizedBox(height: 32),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
+            children: [
+              const Text(
+                'Why Koko&me?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontWeight: FontWeight.w900,
+                  fontSize: 24,
+                  color: Color(0xFF1A0A3A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Most of us spent years surviving English...From school, exams, presentations to cover letters : We got through it. Then we stepped into the workplace and discovered a whole new language hiding inside the one we thought we knew. Gross margin. Net revenue. Stakeholder alignment. Strategic headcount. Suddenly fluent isn\'t enough...you need to sound like you belong in the room. And nobody hands you a guide for that.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: const Color(0xFF1A0A3A).withValues(alpha: 0.5),
+                ),
+              ),
+              const SizedBox(height: 32),
 
-          // 2×2 grid like LingoDeer's icon strip
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            childAspectRatio: 1.0,
-            children: features.map((f) => _FeatureCard(data: f)).toList(),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 500;
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: isWide ? 2.0 : 1.0,
+                    children: features.map((f) => _FeatureCard(data: f)).toList(),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -477,7 +486,10 @@ class _IntroScreenState extends State<IntroScreen>
     return Container(
       color: const Color(0xFF0B0820),
       padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -577,6 +589,8 @@ class _IntroScreenState extends State<IntroScreen>
           ),
         ],
       ),
+        ),
+      ),
     );
   }
 
@@ -594,9 +608,11 @@ class _IntroScreenState extends State<IntroScreen>
         ),
       ),
       padding: const EdgeInsets.fromLTRB(24, 48, 24, 56),
-      child: Column(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
         children: [
-          // Koko small
           Image.asset(
             'assets/images/koko.png',
             width: 80, height: 80,
@@ -682,6 +698,8 @@ class _IntroScreenState extends State<IntroScreen>
             ),
           ],
         ],
+      ),
+        ),
       ),
     );
   }

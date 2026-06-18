@@ -112,10 +112,8 @@ class AuthService {
 
   // ── Déconnexion ───────────────────────────────────────────────────────────
   static Future<void> signOut() async {
-    await Future.wait([
-      if (_auth != null) _auth!.signOut(),
-      _googleSignIn.signOut(),
-    ]);
+    if (_auth != null) await _auth!.signOut();
+    await _googleSignIn.signOut();
   }
 
   // ── Suppression de compte (RGPD) ──────────────────────────────────────────

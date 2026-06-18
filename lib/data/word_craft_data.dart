@@ -245,7 +245,7 @@ class WordCraftData {
       WcCombo('Reputation','Time',  'Brand Equity',   '💎', 'A brand\'s reputation compounded over time = brand equity.'),
       WcCombo('Positioning','Brand','Brand Equity',   '💎', 'A strong brand position held over time = brand equity.'),
       WcCombo('Analytics','Money',  'ROI',            '🎯', 'What your analytics reveal about your marketing spend.'),
-      WcCombo('Paid Ad', 'Analytics','CPC',           '💲', 'Cost Per Click — the atomic unit of paid advertising.'),
+      WcCombo('Paid Ad', 'Analytics','CPC',           '💲', 'Cost Per Click, the atomic unit of paid advertising.'),
       WcCombo('Persona', 'Market',  'Segmentation',   '🗂️', 'Dividing the market into persona groups = segmentation.'),
 
       // ── Level 3: key lesson vocabulary

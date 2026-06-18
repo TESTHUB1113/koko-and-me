@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/user_profile.dart';
 import '../data/user_progress.dart';
 import '../data/dept_progress.dart';
@@ -50,11 +51,28 @@ class SyncService {
   // ── Lecture cloud → local ─────────────────────────────────────────────────
   /// Appelé juste après la connexion.
   /// Si le document n'existe pas (nouveau compte), pousse les données locales.
+  static const _lastUidKey = 'last_signed_in_uid';
+
   static Future<void> pullFromCloud() async {
     final doc = _userDoc;
     if (doc == null) return;
 
     try {
+      // If the signed-in UID differs from the last stored UID, this is a
+      // different account on the same device. Wipe all local progress so the
+      // new user never sees the previous user's data.
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid != null) {
+        final prefs     = await SharedPreferences.getInstance();
+        final storedUid = prefs.getString(_lastUidKey);
+        if (storedUid != currentUid) {
+          await DeptProgress.clearAllLocal();
+          await UserProgress.clearAllLocal();
+          await UserProfile.clearAllLocal();
+          await prefs.setString(_lastUidKey, currentUid);
+        }
+      }
+
       final snap = await doc.get();
 
       if (!snap.exists || snap.data() == null) {
@@ -93,6 +111,15 @@ class SyncService {
             (d['testMaxScore'] as int?) ?? 1,
           );
         }
+        final gameBestScores =
+            d['gameBestScores'] as Map<String, dynamic>? ?? {};
+        for (final entry in gameBestScores.entries) {
+          final idx = int.tryParse(entry.key);
+          if (idx != null) {
+            await DeptProgress.setGameBestScoreFromCloud(
+                id, idx, (entry.value as int?) ?? 0);
+          }
+        }
       }
     } catch (_) {
       // Pas de réseau ou Firebase non configuré → on continue en local
@@ -110,11 +137,14 @@ class SyncService {
       final departments = <String, Map<String, dynamic>>{};
       for (final id in _deptIds) {
         if (!DeptProgress.hasStarted(id)) continue;
+        final gameBestScores = DeptProgress.getGameBestScores(id);
         departments[id] = {
-          'lessonDone':   DeptProgress.isLessonDone(id),
-          'testDone':     DeptProgress.isTestDone(id),
-          'testScore':    DeptProgress.getTestScore(id),
-          'testMaxScore': DeptProgress.getTestMaxScore(id),
+          'lessonDone':    DeptProgress.isLessonDone(id),
+          'testDone':      DeptProgress.isTestDone(id),
+          'testScore':     DeptProgress.getTestScore(id),
+          'testMaxScore':  DeptProgress.getTestMaxScore(id),
+          if (gameBestScores.isNotEmpty)
+            'gameBestScores': gameBestScores.map((k, v) => MapEntry('$k', v)),
         };
       }
 
@@ -169,6 +199,28 @@ class SyncService {
       );
     } catch (_) {
       // silencieux
+    }
+  }
+
+  // ── Changement de compte local (Windows — pas de Firebase) ───────────────
+  // Sur Windows Firebase est bypassé, donc pullFromCloud n'est jamais appelé.
+  // On utilise l'email comme proxy d'identité pour détecter un changement de compte.
+  static const _lastLocalEmailKey = 'last_local_email';
+
+  static Future<void> handleLocalAccountSwitch({
+    required String email,
+    required bool isNewUser,
+  }) async {
+    final prefs       = await SharedPreferences.getInstance();
+    final storedEmail = prefs.getString(_lastLocalEmailKey);
+
+    if (isNewUser || storedEmail != email) {
+      await DeptProgress.clearAllLocal();
+      await UserProgress.clearAllLocal();
+      await UserProfile.clearAllLocal();
+    }
+    if (email.isNotEmpty) {
+      await prefs.setString(_lastLocalEmailKey, email);
     }
   }
 }

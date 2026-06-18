@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'jungle_map_screen.dart';
+import 'onboarding_screen.dart';
 import '../data/user_profile.dart';
 import '../services/auth_service.dart';
 import '../services/sync_service.dart';
@@ -34,6 +36,16 @@ class _AuthScreenState extends State<AuthScreen> {
   bool   _loading          = false;
   String _errorMessage     = '';
 
+  // Firebase SDK fires auth callbacks on a non-platform thread on Windows, crashing the app.
+  // On Windows we bypass Firebase entirely and store auth data locally only.
+  static bool get _isWindows =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -42,9 +54,33 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  // ── Auth locale (Windows uniquement) ─────────────────────────────────────
+  Future<void> _onLocalSuccess({
+    required String name,
+    required String email,
+    required bool isNewUser,
+  }) async {
+    // Sur Windows Firebase est bypassé : on détecte le changement de compte
+    // via l'email pour éviter que la data du précédent utilisateur ne fuite.
+    await SyncService.handleLocalAccountSwitch(email: email, isNewUser: isNewUser);
+    await UserProfile.save(
+      newName:  name.isNotEmpty  ? name  : null,
+      newEmail: email.isNotEmpty ? email : null,
+    );
+    if (!mounted) return;
+    final next = isNewUser ? const OnboardingScreen() : const JungleMapScreen();
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (ctx, anim, _) => next,
+        transitionsBuilder: (ctx, anim, _, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
   // ── Après une authentification réussie ────────────────────────────────────
-  Future<void> _onAuthSuccess() async {
-    // Sauvegarder le profil localement (nom saisi ou displayName Firebase)
+  Future<void> _onAuthSuccess({bool isNewUser = false}) async {
     final name  = _nameCtrl.text.trim().isNotEmpty
         ? _nameCtrl.text.trim()
         : (AuthService.displayName ?? '');
@@ -55,13 +91,14 @@ class _AuthScreenState extends State<AuthScreen> {
       newEmail: email.isNotEmpty ? email : null,
     );
 
-    // Pull depuis Firestore (nouveau compte → push, compte existant → pull)
     await SyncService.pullFromCloud();
 
     if (!mounted) return;
+    // New sign-up → choose department first; returning login → go straight to map
+    final next = isNewUser ? const OnboardingScreen() : const JungleMapScreen();
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (ctx, anim, _) => const JungleMapScreen(),
+        pageBuilder: (ctx, anim, _) => next,
         transitionsBuilder: (ctx, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),
@@ -87,6 +124,11 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() { _loading = true; _errorMessage = ''; });
 
     try {
+      if (_isWindows) {
+        // Windows: skip Firebase entirely (native SDK crashes on background thread)
+        await _onLocalSuccess(name: name, email: email, isNewUser: _isSignUp);
+        return;
+      }
       if (_isSignUp) {
         await AuthService.signUpWithEmail(
           name:     name,
@@ -97,7 +139,7 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         await AuthService.signInWithEmail(email: email, password: password);
       }
-      await _onAuthSuccess();
+      await _onAuthSuccess(isNewUser: _isSignUp);
     } on AuthException catch (e) {
       if (mounted) setState(() { _errorMessage = e.message; _loading = false; });
     }
@@ -105,6 +147,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Google Sign-In ────────────────────────────────────────────────────────
   Future<void> _googleSignIn() async {
+    if (_isWindows) {
+      // Google sign-in also triggers the Firebase threading crash on Windows
+      setState(() => _errorMessage = 'Utilisez email/mot de passe sur Windows.');
+      return;
+    }
     setState(() { _loading = true; _errorMessage = ''; });
     try {
       final credential = await AuthService.signInWithGoogle();
@@ -114,13 +161,14 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
       // Créer le document si c'est un nouveau compte Google
-      if (credential.additionalUserInfo?.isNewUser == true) {
+      final newUser = credential.additionalUserInfo?.isNewUser == true;
+      if (newUser) {
         await SyncService.createUserDocument(
           name:  AuthService.displayName ?? '',
           email: credential.user?.email ?? '',
         );
       }
-      await _onAuthSuccess();
+      await _onAuthSuccess(isNewUser: newUser);
     } on AuthException catch (e) {
       if (mounted) setState(() { _errorMessage = e.message; _loading = false; });
     }
@@ -140,6 +188,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // ── Continuer sans compte (mode invité) ──────────────────────────────────
   Future<void> _continueAsGuest() async {
+    // Guests don't get a personalised path — clear any dept chosen on onboarding
+    await UserProfile.save(newFocusDept: '');
     final name = _nameCtrl.text.trim();
     if (name.isNotEmpty) {
       await UserProfile.save(newName: name);
@@ -463,24 +513,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ],
-              ),
-
-              // ── Continuer sans compte ────────────────────────────────────
-              const SizedBox(height: 14),
-              Center(
-                child: TextButton(
-                  onPressed: _loading ? null : _continueAsGuest,
-                  child: Text(
-                    'Continuer sans compte',
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.28),
-                      decoration: TextDecoration.underline,
-                      decorationColor: Colors.white.withValues(alpha: 0.18),
-                    ),
-                  ),
-                ),
               ),
 
               const SizedBox(height: 24),
