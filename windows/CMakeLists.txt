@@ -58,7 +58,7 @@ add_subdirectory("runner")
 
 # Stub targets for optional Firebase plugins not included in this project.
 # firebase_core 4.x Windows CMakeLists.txt references these unconditionally.
-foreach(_firebase_stub firebase_database firebase_app_check)
+foreach(_firebase_stub firebase_database firebase_app_check firebase_storage firebase_firestore)
   if(NOT TARGET ${_firebase_stub})
     add_library(${_firebase_stub} INTERFACE)
   endif()
