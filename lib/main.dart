@@ -31,6 +31,11 @@ Future<void> main() async {
   // callbacks on a C++ background thread, which crashes Flutter immediately.
   // All Firebase calls are guarded with null-checks so the app runs locally.
   final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  // Notifications use flutter_local_notifications which only ships Android/iOS
+  // settings — calling init() on macOS or Windows throws before runApp().
+  final isMobile  = !kIsWeb && (
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS);
   if (!isWindows) {
     try {
       await Firebase.initializeApp(
@@ -39,14 +44,15 @@ Future<void> main() async {
     } catch (_) {}
   }
   // Load all persisted data before the app starts.
-  // Notifications are Android/iOS only — skip on Windows (no Windows settings
-  // were provided to InitializationSettings so it would throw).
-  await Future.wait([
-    UserProgress.load(),
-    DeptProgress.load(),
-    UserProfile.load(),
-    if (!isWindows) NotificationService.init(),
-  ]);
+  // Wrap in try/catch so a platform init failure never leaves a black screen.
+  try {
+    await Future.wait([
+      UserProgress.load(),
+      DeptProgress.load(),
+      UserProfile.load(),
+      if (isMobile) NotificationService.init(),
+    ]);
+  } catch (_) {}
   runZonedGuarded(
     () => runApp(const KokoMeApp()),
     (error, stack) {
